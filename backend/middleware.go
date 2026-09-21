@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -59,7 +60,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		r.Header.Set("user_id", string(user.ID))
+		r.Header.Set("user_id", strconv.FormatUint(uint64(user.ID), 10))
 		r.Header.Set("user_email", string(user.Email))
 		r.Header.Set("user_role", string(user.Role.Name))
 

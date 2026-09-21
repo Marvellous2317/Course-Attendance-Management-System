@@ -4,10 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 
-	main "cms"
-
 	"golang.org/x/crypto/bcrypt"
 )
+
+type userRecord struct {
+	FirstName string
+	LastName  string
+	Email     string
+	RoleID    uint
+	Password  string
+}
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
@@ -24,7 +30,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var existingUser main.User
+	var existingUser userRecord
 
 	if err := h.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
 		w.WriteHeader(http.StatusConflict)
@@ -40,7 +46,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := main.User{
+	user := userRecord{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
 		Email:     input.Email,
@@ -72,7 +78,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var existingUser main.User
+	var existingUser userRecord
 
 	if err := h.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
 		w.WriteHeader(http.StatusNotFound)
