@@ -117,3 +117,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
+
+// func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+// 	token := r.Header.Get("Authorization")
+// 	tokenID, _ := strconv.ParseUint(token, 10, 64)
+// }
