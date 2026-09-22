@@ -1,18 +1,21 @@
 package handlers
 
 import (
+	"cms/models"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-type userRecord struct {
-	FirstName string
-	LastName  string
-	Email     string
-	RoleID    uint
-	Password  string
+func generateToken() string {
+	bytes := make([]byte, 48)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -25,28 +28,25 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	var existingUser userRecord
+	var existingUser models.User
 
 	if err := h.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": "User already exists"})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "User already exists"})
 		return
 	}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	user := userRecord{
+	user := models.User{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
 		Email:     input.Email,
@@ -55,14 +55,11 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.DB.Create(&user).Error; err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Registration successful"})
+	writeJSON(w, http.StatusCreated, map[string]string{"message": "Registration successful"})
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -73,22 +70,50 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	var existingUser userRecord
+	var existingUser models.User
 
-	if err := h.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid credentials"})
+	if err := h.DB.Where("email = ?", input.Email).First(&existingUser).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Invalid credentials"})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(input.Password)); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid credentials"})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 		return
 	}
+
+	accessToken := generateToken()
+	refreshToken := generateToken()
+	now := time.Now()
+
+	sessionToken := models.SessionToken{
+		Token:                 accessToken,
+		RefreshToken:          refreshToken,
+		UserID:                existingUser.ID,
+		LastUsedAt:            now,
+		ExpiresAt:             now.Add(30 * time.Minute),
+		RefreshTokenExpiresAt: now.Add(5 * time.Hour),
+	}
+
+	if err := h.DB.Create(&sessionToken).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create session"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Login successful",
+		"data": map[string]interface{}{
+			"accessToken":  strconv.FormatUint(uint64(sessionToken.ID), 10) + "|" + sessionToken.Token,
+			"refreshToken": strconv.FormatUint(uint64(sessionToken.ID), 10) + "|" + sessionToken.RefreshToken,
+			"user": map[string]interface{}{
+				"email": existingUser.Email,
+				"id":    existingUser.ID,
+			},
+		},
+	})
+
 }

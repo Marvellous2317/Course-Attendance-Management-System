@@ -30,14 +30,15 @@ func setupRouter() *http.ServeMux {
 
 	// auth routes
 	mux.HandleFunc("POST /api/login", chain(h.LoginUser, public...))
+	mux.HandleFunc("POST /api/register", chain(h.RegisterUser, public...))
 	mux.HandleFunc("GET /api/profile", chain(h.LoginUser, user...))
 
 	// role routes
-	mux.HandleFunc("GET /api/roles", chain(h.GetAllRoles, admin...))
-	mux.HandleFunc("GET /api/roles/{id}", chain(h.GetRole, admin...))
-	mux.HandleFunc("POST /api/roles/{id}", chain(h.GetRole, admin...))
-	mux.HandleFunc("PATCH /api/roles/{id}", chain(h.GetRole, admin...))
-	mux.HandleFunc("DELETE /api/roles/{id}", chain(h.GetRole, admin...))
+	mux.HandleFunc("GET /api/admin/roles", chain(h.GetAllRoles, admin...))
+	mux.HandleFunc("POST /api/admin/roles", chain(h.CreateRole, admin...))
+	mux.HandleFunc("GET /api/admin/roles/{id}", chain(h.GetRole, admin...))
+	mux.HandleFunc("PATCH /api/admin/roles/{id}", chain(h.UpdateRole, admin...))
+	mux.HandleFunc("DELETE /api/admin/roles/{id}", chain(h.DeleteRole, admin...))
 
 	return mux
 }
