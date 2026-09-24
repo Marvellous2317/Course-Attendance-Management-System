@@ -1,0 +1,9 @@
+export { TeacherLayout } from './TeacherLayout';
+export { TeacherDashboardPage } from './TeacherDashboardPage';
+export { TeacherCoursesPage } from './TeacherCoursesPage';
+export { TeacherAttendancePage } from './TeacherAttendancePage';
+export { TeacherSchedulePage } from './TeacherSchedulePage';
+export { TeacherSettingsPage } from './TeacherSettingsPage';
+export { TeacherSidebar } from './TeacherSidebar';
+export { TeacherHeader } from './TeacherHeader';
+export { TeacherModals } from './TeacherModals';

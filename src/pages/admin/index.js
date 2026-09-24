@@ -1,0 +1,10 @@
+export { AdminLayout } from './AdminLayout';
+export { DashboardView as AdminDashboardPage } from '../../components/admin/DashboardView';
+export { StudentsView as AdminStudentsPage } from '../../components/admin/StudentsView';
+export { TeachersView as AdminTeachersPage } from '../../components/admin/TeachersView';
+export { CoursesView as AdminCoursesPage } from '../../components/admin/CoursesView';
+export { SchedulesView as AdminSchedulesPage } from '../../components/admin/SchedulesView';
+export { FinancesView as AdminFinancesPage } from '../../components/admin/FinancesView';
+export { AnnouncementsView as AdminAnnouncementsPage } from '../../components/admin/AnnouncementsView';
+export { SettingsView as AdminSettingsPage } from '../../components/admin/SettingsView';
+export { AdminModals } from '../../components/admin/AdminModals';

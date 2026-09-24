@@ -1,0 +1,31 @@
+{
+  "name": "react-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "rsbuild dev",
+    "build": "rsbuild build",
+    "preview": "rsbuild preview",
+    "clean": "rm -rf dist",
+    "lint": "rsbuild build"
+  },
+  "dependencies": {
+    "@google/genai": "^2.4.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^2.2.8",
+    "@rsbuild/plugin-react": "^2.1.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3"
+  }
+}
