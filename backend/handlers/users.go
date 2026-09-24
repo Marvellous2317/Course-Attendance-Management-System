@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	cmscontext "cms/context"
 	"cms/models"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"log"
+
 	"net/http"
 	"strconv"
 	"strings"
@@ -180,6 +181,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		ConfirmPassword string `json:"confirmPassword"`
 	}
 
+	user := cmscontext.UserFrom(r.Context())
+
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -192,7 +195,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	var existingUser models.User
 
-	if err := h.DB.Where("email = ?", r.Context().Value("user_email")).First(&existingUser).Error; err != nil {
+	if err := h.DB.Where("email = ?", user.Email).First(&existingUser).Error; err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
 		return
 	}
