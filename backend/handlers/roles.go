@@ -193,3 +193,32 @@ func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusNoContent, nil)
 }
+
+func (h *Handler) RestoreRole(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid role ID"})
+		return
+	}
+
+	var role models.Role
+
+	result := h.DB.Unscoped().First(&role, id)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Role not found"})
+		return
+	}
+
+	result = h.DB.Unscoped().Model(&role).Update("DeletedAt", nil)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to restore role"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Role restored successfully"})
+}
