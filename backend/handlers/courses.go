@@ -98,7 +98,7 @@ func (h *Handler) GetCourse(w http.ResponseWriter, r *http.Request) {
 
 	var course models.Course
 
-	result := h.DB.Preload("CreatedBy").First(&course, id)
+	result := h.DB.First(&course, id)
 
 	if result.Error != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Course not found"})
