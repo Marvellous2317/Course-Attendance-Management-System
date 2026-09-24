@@ -69,10 +69,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		r.Header.Set("user_id", strconv.FormatUint(uint64(user.ID), 10))
-		r.Header.Set("user_email", string(user.Email))
-		r.Header.Set("user_role", string(user.Role.Name))
-
+	.
 		updateSession := map[string]interface{}{
 			"last_used_at": time.Now(),
 		}

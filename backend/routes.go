@@ -33,6 +33,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("POST /api/refresh", chain(h.RefreshToken, public...))
 	mux.HandleFunc("POST /api/register", chain(h.RegisterUser, public...))
 	mux.HandleFunc("GET /api/profile", chain(h.LoginUser, user...))
+	mux.HandleFunc("POST /api/change-password", chain(h.ChangePassword, user...))
 
 	// role routes
 	mux.HandleFunc("GET /api/admin/roles", chain(h.GetAllRoles, admin...))
