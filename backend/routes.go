@@ -30,6 +30,7 @@ func setupRouter() *http.ServeMux {
 
 	// auth routes
 	mux.HandleFunc("POST /api/login", chain(h.LoginUser, public...))
+	mux.HandleFunc("POST /api/refresh", chain(h.RefreshToken, public...))
 	mux.HandleFunc("POST /api/register", chain(h.RegisterUser, public...))
 	mux.HandleFunc("GET /api/profile", chain(h.LoginUser, user...))
 
