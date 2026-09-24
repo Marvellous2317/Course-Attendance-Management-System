@@ -41,6 +41,13 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/roles/{id}", chain(h.GetRole, admin...))
 	mux.HandleFunc("PATCH /api/admin/roles/{id}", chain(h.UpdateRole, admin...))
 	mux.HandleFunc("DELETE /api/admin/roles/{id}", chain(h.DeleteRole, admin...))
+	
+	// courses routes
+	mux.HandleFunc("GET /api/admin/courses", chain(h.GetAllCourses, admin...))
+	mux.HandleFunc("POST /api/admin/courses", chain(h.CreateRole, admin...))
+	mux.HandleFunc("GET /api/admin/courses/{id}", chain(h.GetRole, admin...))
+	mux.HandleFunc("PATCH /api/admin/courses/{id}", chain(h.UpdateRole, admin...))
+	mux.HandleFunc("DELETE /api/admin/courses/{id}", chain(h.DeleteRole, admin...))
 
 	// teacher routes
 	mux.HandleFunc("GET /api/admin/teachers", chain(h.GetAllTeachers, admin...))
