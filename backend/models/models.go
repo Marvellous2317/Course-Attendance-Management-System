@@ -15,16 +15,17 @@ type Role struct {
 
 type User struct {
 	gorm.Model
-	FirstName     string           `json:"first_name" gorm:"not null,size:150"`
-	LastName      string           `json:"last_name" gorm:"not null,size:150"`
-	Email         string           `json:"email" gorm:"unique,not null,size:150,index"`
-	RoleID        uint             `json:"role_id" gorm:"not null,index"`
-	Role          Role             `json:"role" gorm:"foreignKey:RoleID"`
-	Password      string           `json:"-" gorm:"not null"`
-	CourseCreated []Course         `gorm:"foreignKey:CreatedBy"`
-	CourseOffered []CourseOffering `gorm:"many2many:enrollments"`
-	Attendance    []Attendance
-	Tokens        []SessionToken
+	FirstName             string           `json:"first_name" gorm:"not null,size:150"`
+	LastName              string           `json:"last_name" gorm:"not null,size:150"`
+	Email                 string           `json:"email" gorm:"unique,not null,size:150,index"`
+	RoleID                uint             `json:"role_id" gorm:"not null,index"`
+	Role                  Role             `json:"role" gorm:"foreignKey:RoleID"`
+	Password              string           `json:"-" gorm:"not null"`
+	CourseCreated         []Course         `gorm:"foreignKey:CreatedBy"`
+	CourseOffered         []CourseOffering `gorm:"many2many:enrollments"`
+	Attendance            []Attendance
+	Tokens                []SessionToken
+	RequirePasswordChange bool `json:"require_password_change" gorm:"not null,default:true"`
 }
 
 type Course struct {

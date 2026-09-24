@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -118,7 +119,48 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-// 	token := r.Header.Get("Authorization")
-// 	tokenID, _ := strconv.ParseUint(token, 10, 64)
-// }
+func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+
+	var input struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	refreshToken := strings.Split(input.RefreshToken, "|")
+
+	var activeSession models.SessionToken
+
+	result := h.DB.Where("refresh_token = ? AND refresh_token_expires_at > NOW()", refreshToken[1]).First(&activeSession)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
+		return
+	}
+
+	now := time.Now()
+
+	activeSession.Token = generateToken()
+	activeSession.RefreshToken = generateToken()
+	activeSession.ExpiresAt = now.Add(30 * time.Minute)
+	activeSession.RefreshTokenExpiresAt = now.Add(5 * time.Hour)
+
+	result = h.DB.Save(&activeSession)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": result.Error.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Token refreshed",
+		"data": map[string]interface{}{
+			"accessToken":  strconv.FormatUint(uint64(activeSession.ID), 10) + "|" + activeSession.Token,
+			"refreshToken": strconv.FormatUint(uint64(activeSession.ID), 10) + "|" + activeSession.RefreshToken,
+		},
+	})
+
+}
