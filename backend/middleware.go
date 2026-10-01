@@ -1,11 +1,11 @@
 package main
 
 import (
+	cmscontext "cms/context"
 	"cms/models"
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -69,10 +69,6 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		r.Header.Set("user_id", strconv.FormatUint(uint64(user.ID), 10))
-		r.Header.Set("user_email", string(user.Email))
-		r.Header.Set("user_role", string(user.Role.Name))
-
 		updateSession := map[string]interface{}{
 			"last_used_at": time.Now(),
 		}
@@ -89,14 +85,16 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		next(w, r)
+		ctx := cmscontext.WithUser(r.Context(), &user)
+
+		next(w, r.WithContext(ctx))
 	}
 }
 
 func IsAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		role := r.Header.Get("user_role")
-		if role != "admin" {
+		user := cmscontext.UserFrom(r.Context())
+		if user == nil || user.Role.Name != "admin" {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
@@ -106,8 +104,8 @@ func IsAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func IsStudentMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		role := r.Header.Get("user_role")
-		if role != "student" {
+		user := cmscontext.UserFrom(r.Context())
+		if user == nil || user.Role.Name != "student" {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
@@ -117,8 +115,8 @@ func IsStudentMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func IsInstructorMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		role := r.Header.Get("user_role")
-		if role != "instructor" {
+		user := cmscontext.UserFrom(r.Context())
+		if user == nil || user.Role.Name != "instructor" {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}

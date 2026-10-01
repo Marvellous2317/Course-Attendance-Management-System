@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	cmscontext "cms/context"
 	"cms/models"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,10 +23,10 @@ func generateToken() string {
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
+		FirstName string `json:"firstName"`
+		LastName  string `json:"lastName"`
 		Email     string `json:"email"`
-		RoleID    uint   `json:"role_id"`
+		RoleID    uint   `json:"roleId"`
 		Password  string `json:"password"`
 	}
 
@@ -141,6 +143,13 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var existingUser models.User
+
+	if err := h.DB.Where("id = ?", activeSession.UserID).First(&existingUser).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+
 	now := time.Now()
 
 	activeSession.Token = generateToken()
@@ -161,6 +170,54 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			"accessToken":  strconv.FormatUint(uint64(activeSession.ID), 10) + "|" + activeSession.Token,
 			"refreshToken": strconv.FormatUint(uint64(activeSession.ID), 10) + "|" + activeSession.RefreshToken,
 		},
+	})
+
+}
+
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		OldPassword     string `json:"oldPassword"`
+		NewPassword     string `json:"newPassword"`
+		ConfirmPassword string `json:"confirmPassword"`
+	}
+
+	user := cmscontext.UserFrom(r.Context())
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if input.NewPassword != input.ConfirmPassword {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Passwords do not match"})
+		return
+	}
+
+	var existingUser models.User
+
+	if err := h.DB.Where("email = ?", user.Email).First(&existingUser).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	existingUser.Password = string(hashedPassword)
+
+	result := h.DB.Save(&existingUser)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": result.Error.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Password changed",
 	})
 
 }
