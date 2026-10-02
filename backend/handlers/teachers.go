@@ -3,6 +3,7 @@ package handlers
 import (
 	"cms/models"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -55,4 +56,26 @@ func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 		"data":    response,
 	})
 
+}
+
+func (h *Handler) GetTeacher(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Teacher not found"})
+		return
+	}
+
+	var teacher models.User
+	result := h.DB.Preload("Role").Where("role_id = ?", 2).First(&teacher, id)
+	if result.Error != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Teacher not found"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Request successful",
+		"data":    toTeacherResponse(teacher),
+	})
 }
