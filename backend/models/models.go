@@ -21,11 +21,12 @@ type User struct {
 	RoleID                uint             `json:"role_id" gorm:"not null;index"`
 	Role                  Role             `json:"role" gorm:"foreignKey:RoleID"`
 	Password              string           `json:"-" gorm:"not null"`
+	RequirePasswordChange bool `json:"require_password_change" gorm:"default:true"`
 	CourseCreated         []Course         `gorm:"foreignKey:CreatedBy"`
 	CourseOffered         []CourseOffering `gorm:"many2many:enrollments"`
 	Attendance            []Attendance
 	Tokens                []SessionToken
-	RequirePasswordChange bool `json:"require_password_change" gorm:"not null;default:true"`
+	
 }
 
 type Course struct {
