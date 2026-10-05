@@ -1,0 +1,10 @@
+export { AdminLayout } from './AdminLayout';
+export { DashboardView as AdminDashboardPage } from './DashboardView';
+export { StudentsView as AdminStudentsPage } from './StudentsView';
+export { TeachersView as AdminTeachersPage } from './TeachersView';
+export { CoursesView as AdminCoursesPage } from './CoursesView';
+export { SchedulesView as AdminSchedulesPage } from './SchedulesView';
+export { FinancesView as AdminFinancesPage } from './FinancesView';
+export { AnnouncementsView as AdminAnnouncementsPage } from './AnnouncementsView';
+export { SettingsView as AdminSettingsPage } from './SettingsView';
+export { AdminModals } from './AdminModals';
