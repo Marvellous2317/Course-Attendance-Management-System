@@ -53,10 +53,11 @@ func setupRouter() *http.ServeMux {
 
 	// teacher routes
 	mux.HandleFunc("GET /api/admin/teachers", chain(h.GetAllTeachers, admin...))
-	mux.HandleFunc("POST /api/admin/teachers", chain(h.CreateRole, admin...))
-	mux.HandleFunc("GET /api/admin/teachers/{id}", chain(h.GetRole, admin...))
-	mux.HandleFunc("PATCH /api/admin/teachers/{id}", chain(h.UpdateRole, admin...))
-	mux.HandleFunc("DELETE /api/admin/teachers/{id}", chain(h.DeleteRole, admin...))
+	mux.HandleFunc("POST /api/admin/teachers", chain(h.CreateTeacher, admin...))
+	mux.HandleFunc("GET /api/admin/teachers/{id}", chain(h.GetTeacher, admin...))
+	mux.HandleFunc("PATCH /api/admin/teachers/{id}", chain(h.UpdateTeacher, admin...))
+	mux.HandleFunc("DELETE /api/admin/teachers/{id}", chain(h.DeleteTeacher, admin...))
+	mux.HandleFunc("PATCH /api/admin/teachers/{id}/restore", chain(h.RestoreTeacher, admin...))
 
 	return mux
 }
