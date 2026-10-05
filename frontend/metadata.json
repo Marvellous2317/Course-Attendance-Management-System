@@ -1,0 +1,6 @@
+{
+  "name": "Othello Institute - Course Management System",
+  "description": "Premier technology academy and course management platform with landing page, unified campus gateway login, administrative control center, faculty portal, and student LMS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
