@@ -37,7 +37,7 @@ func main() {
 
 	fmt.Println("Database connected successfully")
 
-	router := setupRouter()
+	router := corsMiddleware(configuredCORSOrigins())(setupRouter())
 
 	fmt.Println("Server is running on http://localhost:8080...")
 
