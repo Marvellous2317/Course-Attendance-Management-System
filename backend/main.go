@@ -38,10 +38,15 @@ func main() {
 	fmt.Println("Database connected successfully")
 
 	router := setupRouter()
+	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "http://localhost:3000"
+	}
+	handler := corsMiddleware(allowedOrigin, router)
 
 	fmt.Println("Server is running on http://localhost:8080...")
 
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}
 
