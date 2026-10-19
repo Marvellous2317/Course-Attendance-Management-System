@@ -4,10 +4,7 @@ go build -o cms.exe
 
 ## CORS
 
-The API allows the frontend origin configured by `CORS_ALLOWED_ORIGIN`. For local
-development, it defaults to `http://localhost:3000`. Set this variable in the
-backend `.env` file to the frontend's exact origin when it runs elsewhere, for
-example `CORS_ALLOWED_ORIGIN=https://app.example.com`.
-
-The middleware supports credentialed requests and allows the `Content-Type` and
-`Authorization` headers.
+The API allows the local frontend at `http://localhost:3000` by default. Set
+`CORS_ALLOWED_ORIGINS` to a comma-separated list of exact frontend origins when
+deploying, for example `https://app.example,https://admin.example`. The API
+supports credentialed requests from those origins.

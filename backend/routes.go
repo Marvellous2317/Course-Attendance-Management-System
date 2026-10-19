@@ -32,7 +32,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("POST /api/login", chain(h.LoginUser, public...))
 	mux.HandleFunc("POST /api/refresh", chain(h.RefreshToken, public...))
 	mux.HandleFunc("POST /api/register", chain(h.RegisterUser, public...))
-	mux.HandleFunc("GET /api/profile", chain(h.LoginUser, user...))
+	mux.HandleFunc("GET /api/profile", chain(h.Profile, user...))
 	mux.HandleFunc("POST /api/change-password", chain(h.ChangePassword, user...))
 
 	// role routes
@@ -47,6 +47,8 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/courses", chain(h.GetAllCourses, admin...))
 	mux.HandleFunc("POST /api/admin/courses", chain(h.CreateCourse, admin...))
 	mux.HandleFunc("GET /api/admin/courses/{id}", chain(h.GetCourse, admin...))
+	mux.HandleFunc("GET /api/admin/courses/{id}/teachers", chain(h.GetCourse, admin...))
+	mux.HandleFunc("GET /api/admin/courses/{id}/students", chain(h.GetCourse, admin...))
 	mux.HandleFunc("PATCH /api/admin/courses/{id}", chain(h.UpdateCourse, admin...))
 	mux.HandleFunc("DELETE /api/admin/courses/{id}", chain(h.DeleteCourse, admin...))
 	mux.HandleFunc("PATCH /api/admin/courses/{id}/restore", chain(h.RestoreCourse, admin...))

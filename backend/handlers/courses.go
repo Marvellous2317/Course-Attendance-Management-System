@@ -111,6 +111,31 @@ func (h *Handler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) GetCourseTeachers(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid course ID"})
+		return
+	}
+
+	var course models.Course
+
+	result := h.DB.First(&course, id)
+
+	if result.Error != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Course not found"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Request successful",
+		"data":    toCourseResponse(course),
+	})
+}
+
 func (h *Handler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Title       string `json:"title"`
