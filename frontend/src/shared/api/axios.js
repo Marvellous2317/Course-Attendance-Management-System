@@ -1,6 +1,7 @@
 import axios from "axios";
+import { useAuthStore } from "../store/useAuthStore";
 
-const baseURL = import.meta.env.PUBLIC_API_BASE_URL ?? "/api/";
+const baseURL = import.meta.env.PUBLIC_API_BASE_URL || "";
 
 const axiosInstance = axios.create({
   baseURL,  

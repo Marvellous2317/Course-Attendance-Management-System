@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import { useAuthStore } from '../shared/store/useAuthStore';
 import {
   initialStats,
   initialStudents,
@@ -268,6 +269,7 @@ export function AdminProvider({ children }) {
     }
   };
   const logout = () => {
+    useAuthStore.getState().clearSession();
     setCurrentUser(null);
     setAppView('login');
     showToast('Signed out of campus session securely.', 'info');

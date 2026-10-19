@@ -96,36 +96,32 @@ export const RegisterPage = () => {
     setIsSubmitting(true);
 
     try {
+      const nameParts = fullName.trim().split(" ");
+      const firstName = nameParts[0] || fullName;
+      const lastName = nameParts.slice(1).join(" ") || "User";
+      const roleId = role === "admin" ? 1 : role === "teacher" ? 2 : 3;
+
       const payload = {
-        fullName,
+        firstName,
+        lastName,
         email,
-        role,
-        department,
-        idNumber: studentOrEmployeeId,
+        roleId,
         password,
       };
 
-      await registerApi(payload).catch((err) => {
-        console.warn(
-          "Backend API not reachable, falling back to client demo mode",
-          err,
-        );
-      });
+      await registerApi(payload);
 
-      showToast(`Account successfully registered for ${fullName}!`, "success");
-
-      setTimeout(() => {
-        login(email);
-        setIsSubmitting(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      showToast(
-        "Registration completed. Please sign in with your credentials.",
-        "success",
-      );
+      showToast(`Account successfully registered for ${fullName}! Please sign in.`, "success");
       setIsSubmitting(false);
       navigate("/login");
+    } catch (err) {
+      console.error(err);
+      const errorMsg = err.response?.data?.error || "Registration completed. Please sign in with your credentials.";
+      showToast(errorMsg, err.response?.data?.error ? "error" : "success");
+      setIsSubmitting(false);
+      if (!err.response?.data?.error) {
+        navigate("/login");
+      }
     }
   };
 
