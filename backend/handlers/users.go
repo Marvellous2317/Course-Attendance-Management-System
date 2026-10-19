@@ -221,3 +221,35 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
+
+func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
+	user := cmscontext.UserFrom(r.Context())
+
+	var existingUser models.User
+
+	if err := h.DB.Where("email = ?", user.Email).First(&existingUser).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		return
+	}
+
+	var userRole models.Role
+
+	if err := h.DB.Where("id = ?", user.RoleID).First(&userRole).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Role not found"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Request successful",
+		"data": map[string]interface{}{
+			"id":        existingUser.ID,
+			"email":     existingUser.Email,
+			"firstName": existingUser.FirstName,
+			"lastName":  existingUser.LastName,
+			"role": map[string]interface{}{
+				"id":        userRole.ID,
+				"name":     userRole.Name,
+			},
+		},
+	})
+}
