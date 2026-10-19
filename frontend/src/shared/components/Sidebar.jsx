@@ -40,9 +40,9 @@ export const Sidebar = () => {
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Students', icon: GraduationCap },
-    { id: 'teachers', label: 'Faculty & Staff', icon: Users },
-    { id: 'courses', label: 'Courses & Catalog', icon: BookOpen },
-    { id: 'settings', label: 'Institution Settings', icon: Settings },
+    { id: 'teachers', label: 'Teachers', icon: Users },
+    { id: 'courses', label: 'Courses', icon: BookOpen },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const navContent = (

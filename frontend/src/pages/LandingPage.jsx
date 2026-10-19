@@ -19,7 +19,7 @@ import { OthelloLogo } from "../shared/components/OthelloLogo";
 import { ScrollReveal } from "../shared/components/ScrollReveal";
 import Images from "../../public/images/images";
 
-export const LandingPage = () => {
+export default function LandingPage() {
   const { setAppView, login, switchToAdmin, switchToTeacher, switchToStudent } =
     useAdmin();
 

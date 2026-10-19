@@ -12,7 +12,7 @@ import { StudentDashboardPage } from './StudentDashboardPage';
 import { StudentCoursesPage } from './StudentCoursesPage';
 import { StudentEnrollmentPage } from './StudentEnrollmentPage';
 import { StudentAttendancePage } from './StudentAttendancePage';
-import { StudentSettingsPage } from './StudentSettingsPage';
+import { SettingsPage } from '../auth/SettingsPage';
 import { StudentModals } from './StudentModals';
 export const StudentPortalPage = () => {
   const {
@@ -200,7 +200,7 @@ export const StudentPortalPage = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.25 }}
               >
-                <StudentSettingsPage />
+                <SettingsPage />
               </motion.div>
             )}
           </AnimatePresence>

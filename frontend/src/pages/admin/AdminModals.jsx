@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Clock, History, Lock, ShieldCheck } from "lucide-react";
 import { useAdmin } from "../../context/AdminContext";
 import { Modal } from "../../shared/components/Modal";
 import { Button } from "../../shared/components/Button";
+import { formatCourseDate } from "../../shared/utils/date";
+
 export const AdminModals = () => {
   const {
     activeModal,
@@ -10,6 +13,7 @@ export const AdminModals = () => {
     addStudent,
     addTeacher,
     addCourse,
+    updateCourse,
     addAnnouncement,
   } = useAdmin();
   const [studentForm, setStudentForm] = useState({
@@ -40,6 +44,7 @@ export const AdminModals = () => {
   const [courseForm, setCourseForm] = useState({
     code: "",
     title: "",
+    description: "",
     department: "Computer Science",
     instructorId: "tch-1",
     instructorName: "Dr. Evelyn Foster",
@@ -50,6 +55,38 @@ export const AdminModals = () => {
     status: "Active",
     color: "indigo",
   });
+  const [editCourseForm, setEditCourseForm] = useState({
+    id: "",
+    code: "",
+    title: "",
+    description: "",
+    department: "Computer Science",
+    credits: 3,
+    maxCapacity: 35,
+    room: "",
+    schedule: "",
+    createdAt: "",
+    updatedAt: "",
+  });
+
+  useEffect(() => {
+    if (activeModal === "edit-course" && modalData) {
+      setEditCourseForm({
+        id: modalData.id ?? "",
+        code: modalData.code || "",
+        title: modalData.title || "",
+        description: modalData.description || "",
+        department: modalData.department || "Computer Science",
+        credits: modalData.credits ?? 3,
+        maxCapacity: modalData.maxCapacity ?? 35,
+        room: modalData.room || "",
+        schedule: modalData.schedule || "",
+        createdAt: modalData.createdAt || "",
+        updatedAt: modalData.updatedAt || "",
+      });
+    }
+  }, [activeModal, modalData]);
+
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     content: "",
@@ -91,6 +128,35 @@ export const AdminModals = () => {
     e.preventDefault();
     if (!courseForm.code || !courseForm.title) return;
     addCourse(courseForm);
+    closeModal();
+    setCourseForm({
+      code: "",
+      title: "",
+      description: "",
+      department: "Computer Science",
+      instructorId: "tch-1",
+      instructorName: "Dr. Evelyn Foster",
+      maxCapacity: 35,
+      credits: 3,
+      room: "Hall B-102",
+      schedule: "Mon / Wed 10:00 - 11:30 AM",
+      status: "Active",
+      color: "indigo",
+    });
+  };
+  const handleEditCourseSubmit = (e) => {
+    e.preventDefault();
+    if (!editCourseForm.code || !editCourseForm.title) return;
+    updateCourse(editCourseForm.id, {
+      code: editCourseForm.code,
+      title: editCourseForm.title,
+      description: editCourseForm.description,
+      department: editCourseForm.department,
+      credits: Number(editCourseForm.credits) || 3,
+      maxCapacity: Number(editCourseForm.maxCapacity) || 30,
+      room: editCourseForm.room,
+      schedule: editCourseForm.schedule,
+    });
     closeModal();
   };
   const handleAnnouncementSubmit = (e) => {
@@ -392,6 +458,21 @@ export const AdminModals = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Course Description
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Comprehensive introduction to foundational algorithms, graphs, and dynamic programming..."
+              value={courseForm.description}
+              onChange={(e) =>
+                setCourseForm({ ...courseForm, description: e.target.value })
+              }
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -489,6 +570,235 @@ export const AdminModals = () => {
             </Button>
             <Button type="submit" variant="primary">
               Save Course
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 3b. Edit Course Modal */}
+      <Modal
+        isOpen={activeModal === "edit-course"}
+        onClose={closeModal}
+        title="Edit Course Details"
+        subtitle={`Update catalog specifications for ${editCourseForm.code || "selected course"}`}
+      >
+        <form onSubmit={handleEditCourseSubmit} className="space-y-4">
+          {/* Read-only Tracking & System Info Banner */}
+          <div className="p-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl space-y-2 text-xs">
+            <div className="flex items-center justify-between text-slate-600 font-medium">
+              <span className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                Audit & Tracking Information
+              </span>
+              <span className="font-mono text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200/80">
+                Course ID: #{editCourseForm.id}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] text-slate-600">
+              <div className="flex items-center gap-2 bg-white px-2.5 py-2 rounded-lg border border-slate-200/70">
+                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <div className="truncate">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                    Created At (Read-only)
+                  </span>
+                  <span
+                    className="font-mono font-medium text-slate-800"
+                    title={editCourseForm.createdAt}
+                  >
+                    {formatCourseDate(editCourseForm.createdAt)}
+                  </span>
+                </div>
+                <Lock
+                  className="w-3.5 h-3.5 text-slate-400 ml-auto shrink-0"
+                  title="System timestamp cannot be edited"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 bg-white px-2.5 py-2 rounded-lg border border-slate-200/70">
+                <History className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <div className="truncate">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                    Last Updated (Read-only)
+                  </span>
+                  <span
+                    className="font-mono font-medium text-slate-800"
+                    title={editCourseForm.updatedAt}
+                  >
+                    {formatCourseDate(editCourseForm.updatedAt)}
+                  </span>
+                </div>
+                <Lock
+                  className="w-3.5 h-3.5 text-slate-400 ml-auto shrink-0"
+                  title="Auto-updated upon saving changes"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 italic">
+              * Timestamps are read-only and automatically maintained by the backend audit system.
+            </p>
+          </div>
+
+          {/* Form fields: Code and Title */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Course Code *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. CSC 400"
+                value={editCourseForm.code}
+                onChange={(e) =>
+                  setEditCourseForm({ ...editCourseForm, code: e.target.value })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono font-semibold"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Course Title *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Computer graphics"
+                value={editCourseForm.title}
+                onChange={(e) =>
+                  setEditCourseForm({ ...editCourseForm, title: e.target.value })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Course Description */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Course Description
+            </label>
+            <textarea
+              rows={3}
+              placeholder="e.g. This is for computer graphics"
+              value={editCourseForm.description}
+              onChange={(e) =>
+                setEditCourseForm({
+                  ...editCourseForm,
+                  description: e.target.value,
+                })
+              }
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed"
+            />
+          </div>
+
+          {/* Department, Credits, Capacity */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Department
+              </label>
+              <select
+                value={editCourseForm.department}
+                onChange={(e) =>
+                  setEditCourseForm({
+                    ...editCourseForm,
+                    department: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              >
+                <option>Computer Science</option>
+                <option>Science & Physics</option>
+                <option>Mathematics & Computing</option>
+                <option>Humanities & Literature</option>
+                <option>Fine Arts & Design</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Credits
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="6"
+                value={editCourseForm.credits}
+                onChange={(e) =>
+                  setEditCourseForm({
+                    ...editCourseForm,
+                    credits: parseInt(e.target.value) || 3,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Max Capacity
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="100"
+                value={editCourseForm.maxCapacity}
+                onChange={(e) =>
+                  setEditCourseForm({
+                    ...editCourseForm,
+                    maxCapacity: parseInt(e.target.value) || 30,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Hall & Schedule */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Assigned Hall / Lab
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Lab G-105"
+                value={editCourseForm.room}
+                onChange={(e) =>
+                  setEditCourseForm({ ...editCourseForm, room: e.target.value })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Schedule Timing
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Mon / Wed 02:00 - 03:30 PM"
+                value={editCourseForm.schedule}
+                onChange={(e) =>
+                  setEditCourseForm({
+                    ...editCourseForm,
+                    schedule: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary">
+              Save Changes
             </Button>
           </div>
         </form>

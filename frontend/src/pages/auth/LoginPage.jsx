@@ -10,15 +10,18 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useAuth } from "../../shared/hooks/useAuth"
 import { useAuthStore } from "../../shared/store/useAuthStore";
-import { login as loginApi } from "../../shared/api/auth";
 import Images from "../../../public/images/images";
 
 const currentYear = new Date().getFullYear();
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+
+  const { login, isLoggingIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -28,70 +31,19 @@ export const LoginPage = () => {
     }
   };
 
-  const { login: syncContextLogin, showToast } = useAdmin();
+
   const { setAuth } = useAuthStore();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage("");
-    setIsSubmitting(true);
-
     try {
-      const response = await loginApi({ email, password });
-      const token = response?.data?.accessToken || response?.accessToken || "";
-      const apiUser = response?.data?.user || {};
-
-      let role = apiUser.role?.toLowerCase();
-      if (!role) {
-        if (email.includes("teacher") || email.includes("vance")) {
-          role = "teacher";
-        } else if (email.includes("student") || email.includes("julian")) {
-          role = "student";
-        } else {
-          role = "admin";
-        }
-      }
-
-      const user = {
-        ...apiUser,
-        email: apiUser.email || email,
-        role,
-      };
-
-      setAuth(user, token);
-
-      if (typeof syncContextLogin === "function") {
-        syncContextLogin(email, password);
-      } else {
-        showToast("Signed in successfully!", "success");
-      }
-
-      if (role === "admin") {
-        navigate("/admin");
-      } else if (role === "teacher") {
-        navigate("/teacher");
-      } else if (role === "student") {
-        navigate("/student");
-      } else {
-        navigate("/dashboard");
-      }
+      await login({ email, password });
     } catch (err) {
       console.error("Login failed:", err);
-      const apiError =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        (err.code === "ERR_NETWORK"
-          ? "Unable to reach the authentication server. Please check your network connection."
-          : "Invalid email or password. Please verify your credentials and try again.");
-      setErrorMessage(apiError);
-      showToast(apiError, "error");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -211,25 +163,25 @@ export const LoginPage = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
+                {/* <div className="flex items-center justify-between text-xs pt-1">
                   <button
                     type="button"
-                    onClick={() => navigate("/change-password")}
+                    onClick={() => navigate("/forgot-password")}
                     className="font-semibold text-slate-700 hover:text-slate-950 hover:underline cursor-pointer"
                   >
                     Forgot password?
                   </button>
-                </div>
+                </div> */}
 
                 {/* Sign In Button */}
                 <motion.button
-                  whileHover={{ scale: isSubmitting ? 1 : 1.01, y: isSubmitting ? 0 : -1 }}
-                  whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
+                  whileHover={{ scale: isLoggingIn ? 1 : 1.01, y: isLoggingIn ? 0 : -1 }}
+                  whileTap={{ scale: isLoggingIn ? 1 : 0.98 }}
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isLoggingIn}
                   className="w-full mt-2 py-3.5 px-4 rounded-xl bg-secondary-500 hover:bg-secondary-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-extrabold text-sm shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  {isSubmitting ? (
+                  {isLoggingIn ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                       <span>Authenticating Session...</span>

@@ -6,7 +6,7 @@ import { TeacherDashboardPage } from './TeacherDashboardPage';
 import { TeacherCoursesPage } from './TeacherCoursesPage';
 import { TeacherAttendancePage } from './TeacherAttendancePage';
 import { TeacherSchedulePage } from './TeacherSchedulePage';
-import { TeacherSettingsPage } from './TeacherSettingsPage';
+import { SettingsPage } from '../auth/SettingsPage';
 import { TeacherModals } from './TeacherModals';
 export const TeacherLayout = () => {
   const { teacherTab } = useAdmin();
@@ -21,7 +21,7 @@ export const TeacherLayout = () => {
       case 'schedule':
         return <TeacherSchedulePage key="teacher-schedule" />;
       case 'settings':
-        return <TeacherSettingsPage key="teacher-settings" />;
+        return <SettingsPage key="teacher-settings" />;
       default:
         return <TeacherDashboardPage key="teacher-dashboard" />;
     }

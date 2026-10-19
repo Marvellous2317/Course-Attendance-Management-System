@@ -9,7 +9,7 @@ import { CoursesView } from "./CoursesView";
 import { SchedulesView } from "./SchedulesView";
 import { FinancesView } from "./FinancesView";
 import { AnnouncementsView } from "./AnnouncementsView";
-import { SettingsView } from "./SettingsView";
+import { SettingsPage } from "../auth/SettingsPage";
 import { AdminModals } from "./AdminModals";
 export const AdminLayout = () => {
   const { activeTab } = useAdmin();
@@ -30,7 +30,7 @@ export const AdminLayout = () => {
       case "announcements":
         return <AnnouncementsView key="announcements" />;
       case "settings":
-        return <SettingsView key="settings" />;
+        return <SettingsPage key="settings" />;
       default:
         return <DashboardView key="dashboard" />;
     }
@@ -42,7 +42,7 @@ export const AdminLayout = () => {
 
       {/* Main Administrative Work Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        {/* <Header /> */}
 
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
           <AnimatePresence mode="wait">

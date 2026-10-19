@@ -1,0 +1,197 @@
+import { useState } from 'react';
+
+function InputField({
+  id,
+  name,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  readOnly = false,
+  disabled = false,
+  autoComplete,
+  className = '',
+  labelClassName = '',
+  inputClassName = '',
+  options = [],
+  rows = 4,
+  searchable = false,
+  multiple = false,
+  onExternalSearchChange,
+  onLoadMore,
+  hasNextPage,
+  isFetchingNextPage,
+  ...props
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPasswordField = type === 'password';
+  const isSelectField = type === 'select';
+  const isTextAreaField = type === 'textarea';
+  const inputType = isPasswordField && showPassword ? 'text' : type;
+  const inputId = id || name;
+
+  const normalizedValue = (() => {
+    if (inputType === 'number') {
+      if (value === '' || value == null) return '';
+      if (Array.isArray(value)) {
+        if (value.length === 1) return value[0];
+        return '';
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed === '') return '';
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed) && parsed.length === 1) {
+              return typeof parsed[0] === 'number'
+                ? parsed[0]
+                : String(parsed[0]);
+            }
+          } catch {
+            // fall through to numeric parsing below
+          }
+        }
+        return Number(trimmed) || Number(trimmed) === 0 ? trimmed : '';
+      }
+      if (typeof value === 'number') return value;
+      return '';
+    }
+    return value ?? '';
+  })();
+
+  // Disabled overrides readOnly – if disabled, the field is completely inert
+  const isDisabled = disabled;
+  const isReadOnly = !disabled && readOnly; // readOnly only applies if not disabled
+
+  // Build dynamic classes for inputs / textareas
+  const baseInputClassName = [
+    // 16px on phones: iOS zooms into inputs with smaller text when focused.
+    'w-full rounded-2xl border bg-surface px-4 py-4 font-geist text-base sm:text-sm outline-none transition',
+    'placeholder:text-secondary focus:border-primary-200/75 focus:ring-2 focus:ring-primary/10',
+    // Border color based on state
+    isDisabled || isReadOnly
+      ? 'border-secondary-200 text-secondary!'
+      : 'border-secondary-200',
+    // Background and text styles for different states
+    isDisabled
+      ? 'bg-secondary-50 text-secondary-400 cursor-not-allowed opacity-70'
+      : isReadOnly
+        ? 'bg-secondary-50 text-secondary-700 cursor-default' // focusable but not-editable
+        : 'bg-surface text-primary!',
+    isPasswordField ? 'pr-20' : '',
+    isTextAreaField ? 'min-h-28 resize-y' : '',
+    inputClassName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  // For DropdownSelect we need to pass readOnly/disabled correctly
+  const selectButtonClasses = [
+    'rounded-2xl border-secondary-200 py-4',
+    isDisabled
+      ? 'cursor-not-allowed bg-secondary-50 opacity-70'
+      : isReadOnly
+        ? 'cursor-default bg-secondary-50'
+        : '',
+    inputClassName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return (
+    <div className={`w-full ${className}`.trim()}>
+      {label && (
+        <label
+          htmlFor={inputId}
+          className={`mb-2 block font-geist text-sm font-regular text-secondary ${labelClassName}`.trim()}
+        >
+          {label}
+          {required && (
+            <span className="ml-1 text-red-600 text-xs" aria-hidden="true">
+              *
+            </span>
+          )}
+        </label>
+      )}
+
+      <div className="relative">
+        {isSelectField ? (
+          <DropdownSelect
+            value={value}
+            options={options.map((option) =>
+              typeof option === 'object'
+                ? option
+                : { value: option, label: option },
+            )}
+            onChange={(val) =>
+              !isDisabled &&
+              !isReadOnly &&
+              onChange({ target: { value: val, name } })
+            }
+            placeholder={placeholder}
+            multiple={multiple}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
+            searchable={searchable && !isDisabled && !isReadOnly}
+            onExternalSearchChange={onExternalSearchChange}
+            onLoadMore={onLoadMore}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            buttonClassName={selectButtonClasses}
+            {...props}
+          />
+        ) : isTextAreaField ? (
+          <textarea
+            id={inputId}
+            name={name}
+            value={normalizedValue}
+            onChange={!isDisabled && !isReadOnly ? onChange : undefined}
+            placeholder={placeholder}
+            required={required}
+            readOnly={isReadOnly}
+            disabled={isDisabled}
+            autoComplete={autoComplete}
+            aria-required={required}
+            rows={rows}
+            className={baseInputClassName}
+            {...props}
+          />
+        ) : (
+          <input
+            id={inputId}
+            name={name}
+            type={inputType}
+            value={normalizedValue}
+            onChange={!isDisabled && !isReadOnly ? onChange : undefined}
+            placeholder={placeholder}
+            readOnly={isReadOnly}
+            required={required}
+            disabled={isDisabled}
+            autoComplete={autoComplete}
+            aria-required={required}
+            className={baseInputClassName}
+            {...props}
+          />
+        )}
+
+        {isPasswordField && !isDisabled && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer font-geist text-xs font-medium text-primary-200"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default InputField;

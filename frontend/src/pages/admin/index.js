@@ -6,5 +6,5 @@ export { CoursesView as AdminCoursesPage } from './CoursesView';
 export { SchedulesView as AdminSchedulesPage } from './SchedulesView';
 export { FinancesView as AdminFinancesPage } from './FinancesView';
 export { AnnouncementsView as AdminAnnouncementsPage } from './AnnouncementsView';
-export { SettingsView as AdminSettingsPage } from './SettingsView';
+export { SettingsPage } from '../auth/SettingsPage';
 export { AdminModals } from './AdminModals';

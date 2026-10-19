@@ -1,8 +1,8 @@
 // src/shared/router/index.jsx
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { LandingPage } from "../../pages/LandingPage";
-import { LoginPage, RegisterPage, ChangePasswordPage } from "../../pages/auth";
+import  LandingPage from "../../pages/LandingPage";
+import { LoginPage, RegisterPage, } from "../../pages/auth";
 import { AdminLayout } from "../../pages/admin";
 import { TeacherLayout } from "../../pages/teacher";
 import { StudentPortalPage } from "../../pages/student";
@@ -38,20 +38,7 @@ export function AppRouter() {
           />
           <Route path="/dashboard" element={<RoleRedirect />} />
 
-          <Route
-            path="/change-password"
-            element={
-              <motion.div
-                key="change-password"
-                initial={{ opacity: 0, scale: 0.99 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.99 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChangePasswordPage />
-              </motion.div>
-            }
-          />
+          
 
           {/* Guest Only */}
           <Route element={<GuestRoute />}>

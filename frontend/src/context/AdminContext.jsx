@@ -1,5 +1,11 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuthStore } from '../shared/store/useAuthStore';
+import {
+  getCourses as getCoursesApi,
+  createCourse as createCourseApi,
+  updateCourse as updateCourseApi,
+  deleteCourse as deleteCourseApi,
+} from '../shared/api/admin';
 import {
   initialStats,
   initialStudents,
@@ -203,7 +209,7 @@ const getInitialAppView = () => {
     const path = window.location.pathname.toLowerCase();
     if (path.startsWith('/login')) return 'login';
     if (path.startsWith('/register')) return 'register';
-    if (path.startsWith('/change-password')) return 'change-password';
+    if (path.startsWith('/forgot-password') || path.startsWith('/change-password')) return 'forgot-password';
     if (path.startsWith('/admin')) return 'admin';
     if (path.startsWith('/teacher')) return 'teacher';
     if (path.startsWith('/student')) return 'student';
@@ -237,6 +243,26 @@ export function AdminProvider({ children }) {
   const [activeModal, setActiveModal] = useState(null);
   const [modalData, setModalData] = useState(null);
   const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCoursesFromBackend = async () => {
+      try {
+        const res = await getCoursesApi(1, 50);
+        const data = res?.data || res;
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          // Merge with mock details if backend only returns basic fields
+          setCourses(data);
+        }
+      } catch (err) {
+        // Backend not available or unauthorized; keep initialCourses
+      }
+    };
+    loadCoursesFromBackend();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
   };
@@ -349,18 +375,73 @@ export function AdminProvider({ children }) {
     setTeachers((prev) => prev.filter((t) => t.id !== id));
     showToast('Faculty record archived', 'info');
   };
-  const addCourse = (newCourse) => {
-    const id = `c-${Date.now()}`;
+  const addCourse = async (newCourse) => {
+    const timestamp = new Date().toISOString();
+    let courseId = `c-${Date.now()}`;
+
+    try {
+      const res = await createCourseApi({
+        title: newCourse.title,
+        description: newCourse.description || '',
+        code: newCourse.code,
+      });
+      const data = res?.data || res;
+      if (data?.id) {
+        courseId = data.id;
+      }
+    } catch (err) {
+      console.warn('Backend createCourse offline or failed, using local state:', err?.message || err);
+    }
+
     const fullCourse = {
       ...newCourse,
-      id,
-      enrolledCount: 0,
+      id: courseId,
+      enrolledCount: newCourse.enrolledCount || 0,
+      maxCapacity: newCourse.maxCapacity || 30,
+      createdAt: newCourse.createdAt || timestamp,
+      updatedAt: timestamp,
     };
     setCourses((prev) => [fullCourse, ...prev]);
     showToast(`Course ${fullCourse.code} created!`, 'success');
   };
-  const deleteCourse = (id) => {
-    setCourses((prev) => prev.filter((c) => c.id !== id));
+
+  const updateCourse = async (id, updatedFields) => {
+    const timestamp = new Date().toISOString();
+
+    try {
+      await updateCourseApi(id, {
+        title: updatedFields.title,
+        description: updatedFields.description,
+        code: updatedFields.code,
+      });
+    } catch (err) {
+      console.warn('Backend updateCourse offline or failed, using local state:', err?.message || err);
+    }
+
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (String(c.id) === String(id)) {
+          return {
+            ...c,
+            ...updatedFields,
+            // Preserve creation date, refresh updatedAt
+            createdAt: c.createdAt || timestamp,
+            updatedAt: timestamp,
+          };
+        }
+        return c;
+      })
+    );
+    showToast(`Course ${updatedFields.code || ''} updated successfully!`, 'success');
+  };
+
+  const deleteCourse = async (id) => {
+    try {
+      await deleteCourseApi(id);
+    } catch (err) {
+      console.warn('Backend deleteCourse offline or failed, using local state:', err?.message || err);
+    }
+    setCourses((prev) => prev.filter((c) => String(c.id) !== String(id)));
     showToast('Course catalog updated', 'info');
   };
   const addAnnouncement = (newAnnouncement) => {
@@ -455,6 +536,7 @@ export function AdminProvider({ children }) {
         addTeacher,
         deleteTeacher,
         addCourse,
+        updateCourse,
         deleteCourse,
         addAnnouncement,
         toggleInvoiceStatus,
