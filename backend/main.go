@@ -37,7 +37,7 @@ func main() {
 
 	fmt.Println("Database connected successfully")
 
-	router := corsMiddleware(configuredCORSOrigins())(setupRouter())
+	router := setupRouter()
 	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
 	if allowedOrigin == "" {
 		allowedOrigin = "http://localhost:3000"
