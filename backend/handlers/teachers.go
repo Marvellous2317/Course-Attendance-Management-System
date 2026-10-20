@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type teacherResponse struct {
@@ -254,4 +255,144 @@ func (h *Handler) RestoreTeacher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Teacher restored successfully"})
+}
+
+func (h *Handler) AssignCourses(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid Teacher ID"})
+		return
+	}
+
+	var input struct {
+		CourseIDs []uint `json:"courseIds"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	var existingTeacher models.User
+
+	result := h.DB.Preload("Role").First(&existingTeacher, id)
+
+	if result.Error != nil || existingTeacher.Role.Name != "instructor" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Teacher not found"})
+		return
+	}
+
+	courseIDs := make([]uint, 0, len(input.CourseIDs))
+	seen := make(map[uint]struct{}, len(input.CourseIDs))
+
+	for _, courseID := range input.CourseIDs {
+		if _, ok := seen[courseID]; ok {
+			continue
+		}
+
+		seen[courseID] = struct{}{}
+		courseIDs = append(courseIDs, courseID)
+	}
+
+	var courses []models.Course
+
+	if len(courseIDs) > 0 {
+		if err := h.DB.Where("id IN ?", courseIDs).Find(&courses).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+
+		if len(courses) != len(courseIDs) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "One or more courses not found"})
+			return
+		}
+	}
+
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		return tx.Model(&existingTeacher).Association("AssignedCourses").Replace(courses)
+	})
+
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Request successful",
+		"data": map[string]interface{}{
+			"email":     existingTeacher.Email,
+			"courseIds": courseIDs,
+		},
+	})
+}
+
+func (h *Handler) UnassignCourses(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid Teacher ID"})
+		return
+	}
+
+	var input struct {
+		CourseIDs []uint `json:"courseIds"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if len(input.CourseIDs) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "courseIds is required"})
+		return
+	}
+
+	var existingTeacher models.User
+
+	result := h.DB.Preload("Role").First(&existingTeacher, id)
+
+	if result.Error != nil || existingTeacher.Role.Name != "instructor" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Teacher not found"})
+		return
+	}
+
+	courseIDs := make([]uint, 0, len(input.CourseIDs))
+	seen := make(map[uint]struct{}, len(input.CourseIDs))
+
+	for _, courseID := range input.CourseIDs {
+		if _, ok := seen[courseID]; ok {
+			continue
+		}
+
+		seen[courseID] = struct{}{}
+		courseIDs = append(courseIDs, courseID)
+	}
+
+	var courses []models.Course
+
+	if err := h.DB.Where("id IN ?", courseIDs).Find(&courses).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if len(courses) != len(courseIDs) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "One or more courses not found"})
+		return
+	}
+
+	// Many2many Delete removes the course_teachers join rows only; it does not delete courses.
+	if err := h.DB.Model(&existingTeacher).Association("AssignedCourses").Delete(courses); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Request successful",
+		"data": map[string]interface{}{
+			"email":     existingTeacher.Email,
+			"courseIds": courseIDs,
+		},
+	})
 }
