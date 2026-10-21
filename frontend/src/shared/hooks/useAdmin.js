@@ -271,7 +271,31 @@ export const useRestoreCourse = (options = {}) => {
 // };
 
 // ----------------------------------------------------------------------------------
-// Teachers Hooks
+// ----------------------------------------------------------------------------------
+// Teacher Cache Helpers
+// ----------------------------------------------------------------------------------
+const updateTeacherListCache = (oldData, updateFn) => {
+  if (!oldData) return oldData;
+  if (Array.isArray(oldData)) {
+    return updateFn(oldData);
+  }
+  if (oldData.teachers && Array.isArray(oldData.teachers)) {
+    return { ...oldData, teachers: updateFn(oldData.teachers) };
+  }
+  if (oldData.data && Array.isArray(oldData.data)) {
+    return { ...oldData, data: updateFn(oldData.data) };
+  }
+  return oldData;
+};
+
+const matchTeacherId = (item, targetId) =>
+  String(item?._id || item?.id || item?.teacherId) === String(targetId);
+
+
+
+
+// ----------------------------------------------------------------------------------
+// Teachers Hooks (Instant Real-Time Updates)
 // ----------------------------------------------------------------------------------
 
 export const useAdminTeachers = (options = {}) =>
@@ -291,56 +315,99 @@ export const useAdminTeacher = (teacherId, options = {}) =>
 
 export const useCreateTeacher = (options = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options; // Destructure to prevent overwrite
 
   return useMutation({
     mutationFn: createTeacher,
     onSuccess: (data, variables, context) => {
+      const newTeacher =
+        data?.teacher || data?.data || (data?.email ? data : null);
+
+      // 1. INSTANT UI UPDATE: Inject new teacher directly into cache immediately
+      if (newTeacher) {
+        queryClient.setQueryData(ADMIN_KEYS.teachers, (old) =>
+          updateTeacherListCache(old, (list) => [newTeacher, ...list])
+        );
+      }
+
+      // 2. Background sync with backend
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
-      options.onSuccess?.(data, variables, context);
+
+      // 3. Trigger modal close & form reset
+      onSuccess?.(data, variables, context);
     },
-    ...options,
+    ...restOptions, // Safe spread
   });
 };
 
 export const useUpdateTeacher = (options = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
 
   return useMutation({
     mutationFn: ({ teacherId, payload }) => updateTeacher(teacherId, payload),
-    onSuccess: (data, { teacherId }, context) => {
+    onSuccess: (data, variables, context) => {
+      const { teacherId, payload } = variables;
+      const updatedItem = data?.teacher || data?.data || data;
+
+      // 1. INSTANT UI UPDATE: Update teacher in cache
+      queryClient.setQueryData(ADMIN_KEYS.teachers, (old) =>
+        updateTeacherListCache(old, (list) =>
+          list.map((t) =>
+            matchTeacherId(t, teacherId)
+              ? { ...t, ...payload, ...updatedItem }
+              : t
+          )
+        )
+      );
+
+      // 2. Invalidate queries
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(teacherId) });
-      options.onSuccess?.(data, { teacherId }, context);
+
+      onSuccess?.(data, variables, context);
     },
-    ...options,
+    ...restOptions,
   });
 };
 
 export const useDeleteTeacher = (options = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
 
   return useMutation({
     mutationFn: (teacherId) => deleteTeacher(teacherId),
     onSuccess: (data, teacherId, context) => {
+      // 1. INSTANT UI UPDATE: Remove from active teachers cache immediately
+      queryClient.setQueryData(ADMIN_KEYS.teachers, (old) =>
+        updateTeacherListCache(old, (list) =>
+          list.filter((t) => !matchTeacherId(t, teacherId))
+        )
+      );
+
+      // 2. Invalidate queries
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(teacherId) });
-      options.onSuccess?.(data, teacherId, context);
+
+      onSuccess?.(data, teacherId, context);
     },
-    ...options,
+    ...restOptions,
   });
 };
 
 export const useRestoreTeacher = (options = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
 
   return useMutation({
     mutationFn: (teacherId) => restoreTeacher(teacherId),
     onSuccess: (data, teacherId, context) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(teacherId) });
-      options.onSuccess?.(data, teacherId, context);
+
+      onSuccess?.(data, teacherId, context);
     },
-    ...options,
+    ...restOptions,
   });
 };
 

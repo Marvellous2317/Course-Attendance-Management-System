@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Clock, History, Lock, ShieldCheck, Loader2 } from "lucide-react";
 import { useAdmin } from "../../context/AdminContext";
 import { Modal } from "../../shared/components/Modal";
@@ -8,9 +8,9 @@ import { formatCourseDate } from "../../shared/utils/date";
 // TanStack Query Hooks
 import {
   useCreateTeacher,
+  useUpdateTeacher,
   useCreateCourse,
   useUpdateCourse,
-  useAdminCourses,
 } from "../../shared/hooks/useAdmin";
 
 const INITIAL_TEACHER_FORM = {
@@ -18,7 +18,6 @@ const INITIAL_TEACHER_FORM = {
   lastName: "",
   email: "",
   password: "",
-  subjects: "",
 };
 
 const INITIAL_COURSE_FORM = {
@@ -37,29 +36,42 @@ export default function AdminModals() {
   } = useAdmin();
 
   // ---------------------------------------------------------------------------
-  // Fetch Existing Courses for Dropdown (calls GET /api/admin/courses)
-  // ---------------------------------------------------------------------------
-  const { data: coursesData, isLoading: isLoadingCourses } = useAdminCourses({
-    enabled: activeModal === "add-teacher", // Only fetch when Add Teacher modal is open
-  });
-
-  // Extract and filter active (non-deleted) courses
-  const availableCourses = useMemo(() => {
-    let list = [];
-    if (Array.isArray(coursesData)) list = coursesData;
-    else if (Array.isArray(coursesData?.courses)) list = coursesData.courses;
-    else if (Array.isArray(coursesData?.data)) list = coursesData.data;
-
-    return list.filter(
-      (c) => !c.isDeleted && !c.deletedAt && c.status !== "Deleted"
-    );
-  }, [coursesData]);
-
-  // ---------------------------------------------------------------------------
-  // Teacher Hook & State
+  // Teacher Hooks & State (Create & Edit)
   // ---------------------------------------------------------------------------
   const [teacherForm, setTeacherForm] = useState(INITIAL_TEACHER_FORM);
 
+  const [editTeacherForm, setEditTeacherForm] = useState({
+    id: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    createdAt: "",
+    updatedAt: "",
+  });
+
+  // Populate Edit Teacher Form when modal opens
+  useEffect(() => {
+    if (activeModal === "edit-teacher" && modalData) {
+      const id = modalData._id || modalData.id || modalData.teacherId || "";
+      const firstName =
+        modalData.firstName ||
+        (modalData.name ? modalData.name.split(" ")[0] : "");
+      const lastName =
+        modalData.lastName ||
+        (modalData.name ? modalData.name.split(" ").slice(1).join(" ") : "");
+
+      setEditTeacherForm({
+        id,
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: modalData.email || "",
+        createdAt: modalData.createdAt || "",
+        updatedAt: modalData.updatedAt || "",
+      });
+    }
+  }, [activeModal, modalData]);
+
+  // 1. Create Teacher Mutation
   const {
     mutate: createTeacherMutation,
     isPending: isCreatingTeacher,
@@ -73,6 +85,19 @@ export default function AdminModals() {
     },
   });
 
+  // 2. Update Teacher Mutation
+  const {
+    mutate: updateTeacherMutation,
+    isPending: isUpdatingTeacher,
+    error: updateTeacherError,
+    reset: resetUpdateTeacher,
+  } = useUpdateTeacher({
+    onSuccess: () => {
+      closeModal();
+      resetUpdateTeacher();
+    },
+  });
+
   const handleTeacherSubmit = (e) => {
     e.preventDefault();
     if (
@@ -82,16 +107,33 @@ export default function AdminModals() {
       !teacherForm.password
     )
       return;
-
-    // Convert selected course into an array of subjects as expected by the teacher card
     createTeacherMutation({
-      ...teacherForm,
-      subjects: teacherForm.subjects ? [teacherForm.subjects] : [],
+      firstName: teacherForm.firstName.trim(),
+      lastName: teacherForm.lastName.trim(),
+      email: teacherForm.email.trim(),
+      password: teacherForm.password,
+      roleId: 2,
+    });
+  };
+
+  const handleEditTeacherSubmit = (e) => {
+    e.preventDefault();
+    const teacherId = editTeacherForm.id;
+    if (!teacherId || !editTeacherForm.firstName || !editTeacherForm.lastName)
+      return;
+
+    updateTeacherMutation({
+      teacherId,
+      payload: {
+        firstName: editTeacherForm.firstName.trim(),
+        lastName: editTeacherForm.lastName.trim(),
+        // email: editTeacherForm.email.trim(),
+      },
     });
   };
 
   // ---------------------------------------------------------------------------
-  // Course Hooks & State (TanStack Query Connected)
+  // Course Hooks & State (Create & Edit)
   // ---------------------------------------------------------------------------
   const [courseForm, setCourseForm] = useState(INITIAL_COURSE_FORM);
 
@@ -104,7 +146,7 @@ export default function AdminModals() {
     updatedAt: "",
   });
 
-  // Populate edit form when modal opens
+  // Populate Edit Course Form when modal opens
   useEffect(() => {
     if (activeModal === "edit-course" && modalData) {
       setEditCourseForm({
@@ -118,7 +160,6 @@ export default function AdminModals() {
     }
   }, [activeModal, modalData]);
 
-  // 1. Create Course Mutation
   const {
     mutate: createCourseMutation,
     isPending: isCreatingCourse,
@@ -132,7 +173,6 @@ export default function AdminModals() {
     },
   });
 
-  // 2. Update Course Mutation
   const {
     mutate: updateCourseMutation,
     isPending: isUpdatingCourse,
@@ -268,7 +308,7 @@ export default function AdminModals() {
         isOpen={activeModal === "add-teacher"}
         onClose={closeModal}
         title="Add Teacher"
-        subtitle="Register teacher profile and assign active courses"
+        subtitle="Register teacher profile and assign account credentials"
       >
         <form onSubmit={handleTeacherSubmit} className="space-y-4">
           {teacherError && (
@@ -345,45 +385,6 @@ export default function AdminModals() {
             </div>
           </div>
 
-          {/* Dynamic Courses Dropdown */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Assign Course
-            </label>
-            <div className="relative">
-              <select
-                value={teacherForm.subjects}
-                onChange={(e) =>
-                  setTeacherForm({ ...teacherForm, subjects: e.target.value })
-                }
-                disabled={isLoadingCourses}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none cursor-pointer disabled:bg-slate-100 disabled:text-slate-400"
-              >
-                <option value="">
-                  {isLoadingCourses
-                    ? "Loading available courses..."
-                    : availableCourses.length === 0
-                    ? "No courses found (create a course first)"
-                    : "Select a course to assign..."}
-                </option>
-                {availableCourses.map((course) => {
-                  const id = course._id || course.id;
-                  const label = course.code
-                    ? `${course.code} - ${course.title}`
-                    : course.title;
-                  return (
-                    <option key={id} value={course.title}>
-                      {label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Select an active academic course from your catalog to assign to this faculty member.
-            </p>
-          </div>
-
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
             <Button
               type="button"
@@ -404,6 +405,89 @@ export default function AdminModals() {
               }
             >
               {isCreatingTeacher ? "Creating..." : "Create Teacher"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 2b. Edit Teacher Modal */}
+      <Modal
+        isOpen={activeModal === "edit-teacher"}
+        onClose={closeModal}
+        title="Edit Teacher Profile"
+        subtitle="Update account specifications." 
+      >
+        <form onSubmit={handleEditTeacherSubmit} className="space-y-4">
+          {updateTeacherError && (
+            <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
+              {updateTeacherError?.response?.data?.message ||
+                updateTeacherError?.message ||
+                "Failed to update teacher. Please try again."}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                First Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="First Name"
+                value={editTeacherForm.firstName}
+                onChange={(e) =>
+                  setEditTeacherForm({
+                    ...editTeacherForm,
+                    firstName: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Last Name"
+                value={editTeacherForm.lastName}
+                onChange={(e) =>
+                  setEditTeacherForm({
+                    ...editTeacherForm,
+                    lastName: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeModal}
+              disabled={isUpdatingTeacher}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isUpdatingTeacher}
+              iconLeft={
+                isUpdatingTeacher ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : null
+              }
+            >
+              {isUpdatingTeacher ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

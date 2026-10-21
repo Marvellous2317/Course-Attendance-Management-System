@@ -6,8 +6,6 @@ import {
   BookOpen,
   Trash2,
   Briefcase,
-  Layers,
-  Award,
   Pencil,
   RotateCcw,
   Loader2,
@@ -37,14 +35,13 @@ export default function TeachersView() {
   const adminContext = useAdmin?.() || {};
   const { openModal } = adminContext;
 
-  // Search query support (uses context or local state fallback)
+  // Search query support
   const [localSearch, setLocalSearch] = useState("");
   const searchQuery = adminContext.searchQuery ?? localSearch;
   const setSearchQuery = adminContext.setSearchQuery ?? setLocalSearch;
 
   // Filter tabs: "All" | "Deleted"
   const [activeTab, setActiveTab] = useState("All");
-  const [selectedDept, setSelectedDept] = useState("All");
   const [actioningId, setActioningId] = useState(null);
 
   // State to track which teacher is currently selected for deletion
@@ -74,7 +71,7 @@ export default function TeachersView() {
       onSettled: () => setActioningId(null),
     });
 
-  // Normalize API response safely (handles array or { data: [...] } or { teachers: [...] })
+  // Normalize API response safely
   const teachers = useMemo(() => {
     if (!teachersData) return [];
     if (Array.isArray(teachersData)) return teachersData;
@@ -83,49 +80,11 @@ export default function TeachersView() {
     return [];
   }, [teachersData]);
 
-  // Dynamic departments (merges predefined with any new departments from backend)
-  const departments = useMemo(() => {
-    const defaultDepts = [
-      "All",
-      "Science & Physics",
-      "Mathematics & Computing",
-      "Humanities & Literature",
-      "Computer Science",
-      "Fine Arts & Design",
-    ];
-    const set = new Set(defaultDepts);
-    teachers.forEach((t) => {
-      if (t.department) set.add(t.department);
-    });
-    return Array.from(set);
-  }, [teachers]);
-
-  // Tab counters (All vs Deleted)
+  // Tab counters (Active vs Deleted)
   const counts = useMemo(() => {
     const deleted = teachers.filter(isTeacherDeleted).length;
     const active = teachers.length - deleted;
     return { all: active, deleted };
-  }, [teachers]);
-
-  // Dynamic metrics calculation
-  const metrics = useMemo(() => {
-    const activeFaculty = teachers.filter((t) => !isTeacherDeleted(t));
-    const totalFaculty = activeFaculty.length;
-    const uniqueDepts = new Set(
-      activeFaculty.map((t) => t.department).filter(Boolean)
-    ).size;
-    const totalClasses = activeFaculty.reduce(
-      (sum, t) => sum + (Number(t.classesCount) || 0),
-      0
-    );
-    const avgLoad =
-      totalFaculty > 0 ? (totalClasses / totalFaculty).toFixed(1) : "0.0";
-
-    return {
-      totalFaculty,
-      deptCount: uniqueDepts || 6,
-      avgLoad,
-    };
   }, [teachers]);
 
   // Filter teachers safely with null-checks and activeTab support
@@ -136,26 +95,23 @@ export default function TeachersView() {
         teacher.name ||
         `${teacher.firstName || ""} ${teacher.lastName || ""}`
       ).trim();
-      const teacherCode = String(teacher.teacherId || teacher.id || teacher._id || "");
+      const teacherCode = String(
+        teacher.teacherId || teacher.id || teacher._id || ""
+      );
       const dept = teacher.department || "";
-      const subjects = Array.isArray(teacher.subjects) ? teacher.subjects : [];
 
       const matchesSearch =
         !q ||
         teacherName.toLowerCase().includes(q) ||
         dept.toLowerCase().includes(q) ||
-        teacherCode.toLowerCase().includes(q) ||
-        subjects.some((s) => s.toLowerCase().includes(q));
-
-      const matchesDept =
-        selectedDept === "All" || dept === selectedDept;
+        teacherCode.toLowerCase().includes(q);
 
       const isDel = isTeacherDeleted(teacher);
       const matchesTab = activeTab === "Deleted" ? isDel : !isDel;
 
-      return matchesSearch && matchesDept && matchesTab;
+      return matchesSearch && matchesTab;
     });
-  }, [teachers, searchQuery, selectedDept, activeTab]);
+  }, [teachers, searchQuery, activeTab]);
 
   // ---------------------------------------------------------------------------
   // Action Handlers
@@ -171,7 +127,8 @@ export default function TeachersView() {
 
   const handleConfirmDelete = () => {
     if (!teacherToDelete) return;
-    const id = teacherToDelete._id || teacherToDelete.id || teacherToDelete.teacherId;
+    const id =
+      teacherToDelete._id || teacherToDelete.id || teacherToDelete.teacherId;
     setActioningId(id);
     deleteTeacherMutation(id);
   };
@@ -213,7 +170,7 @@ export default function TeachersView() {
           size="sm"
           iconLeft={<RefreshCw className="w-4 h-4" />}
           onClick={() => refetch()}
-          className="mx-auto"
+          className="mx-auto cursor-pointer"
         >
           Try Again
         </Button>
@@ -225,7 +182,7 @@ export default function TeachersView() {
     <div className="space-y-6 pb-12">
       {/* Header controls & filter tabs: Active vs Deleted */}
       <ScrollReveal delay={0.05}>
-        <Card className="p-4 sm:p-5 space-y-4">
+        <Card className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             {/* Filter Tabs */}
             <div className="flex items-center gap-2">
@@ -279,29 +236,9 @@ export default function TeachersView() {
               onClick={() => openModal?.("add-teacher")}
               className="shrink-0 self-end sm:self-auto cursor-pointer"
             >
-              Add Faculty Member
+              Add Teacher
             </Button>
           </div>
-
-          {/* Department horizontal scrolling pills */}
-          {departments.length > 1 && (
-            <div className="pt-3 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-              {departments.map((dept) => (
-                <button
-                  key={dept}
-                  type="button"
-                  onClick={() => setSelectedDept(dept)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    selectedDept === dept
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {dept}
-                </button>
-              ))}
-            </div>
-          )}
         </Card>
       </ScrollReveal>
 
@@ -316,16 +253,17 @@ export default function TeachersView() {
           description={
             activeTab === "Deleted"
               ? "Deleted faculty members will appear here where you can restore them."
-              : "Try selecting another department or resetting the search."
+              : "Try adjusting your search query or add a new faculty member."
           }
           actionLabel={
             activeTab === "Deleted"
               ? "View Active Faculty"
-              : "View All Faculty"
+              : "Reset Search"
           }
           onAction={() => {
-            setActiveTab("All");
-            setSelectedDept("All");
+            if (activeTab === "Deleted") {
+              setActiveTab("All");
+            }
             setSearchQuery("");
           }}
         />
@@ -335,9 +273,6 @@ export default function TeachersView() {
             const currentId = teacher.id || teacher.teacherId || teacher._id;
             const isCurrentActioning =
               actioningId === currentId && (isDeleting || isRestoring);
-            const subjects = Array.isArray(teacher.subjects)
-              ? teacher.subjects
-              : [];
             const teacherName =
               teacher.name ||
               `${teacher.firstName || ""} ${teacher.lastName || ""}`.trim() ||
@@ -359,7 +294,7 @@ export default function TeachersView() {
                 <Card
                   hoverEffect
                   className={`p-5 flex flex-col justify-between h-full group ${
-                    isDel ? "opacity-60 bg-slate-50" : ""
+                    isDel ? "opacity-75 bg-slate-50" : ""
                   }`}
                 >
                   <div>
@@ -399,41 +334,24 @@ export default function TeachersView() {
                     </div>
 
                     {/* Department & Qualification */}
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
-                      {teacher.department && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-700">
-                          <Briefcase className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="font-semibold">
-                            {teacher.department}
-                          </span>
-                        </div>
-                      )}
-                      {teacher.qualification && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">
-                            {teacher.qualification}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Subjects Taught */}
-                    {subjects.length > 0 && (
-                      <div className="mt-4">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                          Assigned Subjects ({subjects.length})
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {subjects.map((subj, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 rounded-md text-[11px] bg-slate-100 text-slate-700 font-medium"
-                            >
-                              {subj}
+                    {(teacher.department || teacher.qualification) && (
+                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                        {teacher.department && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                            <Briefcase className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            <span className="font-semibold">
+                              {teacher.department}
                             </span>
-                          ))}
-                        </div>
+                          </div>
+                        )}
+                        {teacher.qualification && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                            <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">
+                              {teacher.qualification}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -459,17 +377,7 @@ export default function TeachersView() {
 
                     {/* Action buttons (Edit, Delete, Restore) */}
                     <div className="flex items-center gap-1">
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => openModal?.("edit-teacher", teacher)}
-                        className="text-slate-400 hover:text-indigo-600 cursor-pointer"
-                        title="Edit faculty member"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-
-                      {isDel ? (
+                      {activeTab === "Deleted" ? (
                         <Button
                           size="xs"
                           variant="ghost"
@@ -479,26 +387,38 @@ export default function TeachersView() {
                           title="Restore teacher record"
                         >
                           {isCurrentActioning ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
                           ) : (
                             <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
                           )}
                         </Button>
                       ) : (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          disabled={isCurrentActioning}
-                          onClick={() => handleOpenDeleteModal(teacher)}
-                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                          title="Remove teacher record"
-                        >
-                          {isCurrentActioning ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
+                        <>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => openModal?.("edit-teacher", teacher)}
+                            className="text-slate-400 hover:text-indigo-600 cursor-pointer"
+                            title="Edit faculty member"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            disabled={isCurrentActioning}
+                            onClick={() => handleOpenDeleteModal(teacher)}
+                            className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                            title="Remove teacher record"
+                          >
+                            {isCurrentActioning ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

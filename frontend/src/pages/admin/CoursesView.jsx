@@ -229,7 +229,7 @@ export default function CoursesView() {
                 </span>
               </button>
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setActiveTab("Deleted")}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
@@ -248,7 +248,7 @@ export default function CoursesView() {
                 >
                   {counts.deleted}
                 </span>
-              </button>
+              </button> */}
             </div>
 
             <Button
