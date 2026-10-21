@@ -46,14 +46,46 @@ func toTeacherResponse(teacher models.User) teacherResponse {
 func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 	var teachers []models.User
 
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+
+	if page <= 0 {
+		page = 1
+	}
+
+	perPage, _ := strconv.Atoi(r.URL.Query().Get("perPage"))
+
+	switch {
+	case perPage <= 0:
+		perPage = 20
+	case perPage > 50:
+		perPage = 50
+	}
+
+	offset := (page - 1) * perPage
+
+	var totalRecords int64
+
 	showDeleted := r.URL.Query().Get("isDeleted")
+
 	if showDeleted == "true" {
-		if err := h.DB.Preload("Role").Order("-ID").Where("role_id = ?", 2).Where("deleted_at IS NULL").Find(&teachers).Error; err != nil {
+		if err := h.DB.Model(&models.User{}).Where("role_id = ?", 2).Where("deleted_at IS NULL").Count(&totalRecords).Error; err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
 	} else {
-		if err := h.DB.Preload("Role").Order("-ID").Where("role_id = ?", 2).Find(&teachers).Error; err != nil {
+		if err := h.DB.Model(&models.User{}).Where("role_id = ?", 2).Count(&totalRecords).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+
+	if showDeleted == "true" {
+		if err := h.DB.Preload("Role").Order("-ID").Where("role_id = ?", 2).Where("deleted_at IS NULL").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.DB.Preload("Role").Order("-ID").Where("role_id = ?", 2).Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}

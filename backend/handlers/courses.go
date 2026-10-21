@@ -38,7 +38,7 @@ func toCourseResponse(course models.Course) courseResponse {
 
 func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 	var courses []models.Course
-	
+
 	showDeleted := r.URL.Query().Get("isDeleted")
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
