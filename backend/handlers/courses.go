@@ -38,6 +38,8 @@ func toCourseResponse(course models.Course) courseResponse {
 
 func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 	var courses []models.Course
+	
+	showDeleted := r.URL.Query().Get("isDeleted")
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 
@@ -57,14 +59,29 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * perPage
 
 	var totalRecords int64
-	if err := h.DB.Model(&models.Course{}).Count(&totalRecords).Error; err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+
+	if showDeleted == "true" {
+		if err := h.DB.Model(&models.Course{}).Count(&totalRecords).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.DB.Where("deleted_at IS NULL").Model(&models.Course{}).Count(&totalRecords).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
 	}
 
-	if err := h.DB.Order("id DESC").Limit(perPage).Offset(offset).Find(&courses).Error; err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+	if showDeleted == "true" {
+		if err := h.DB.Order("id DESC").Limit(perPage).Offset(offset).Find(&courses).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.DB.Where("deleted_at IS NULL").Order("id DESC").Limit(perPage).Offset(offset).Find(&courses).Error; err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
 	}
 
 	response := make([]courseResponse, 0, len(courses))
