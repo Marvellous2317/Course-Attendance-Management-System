@@ -9,7 +9,7 @@ import {
   Search,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const TeacherModals = () => {
+export default function TeacherModals() {
   const {
     isAttendanceModalOpen,
     setIsAttendanceModalOpen,

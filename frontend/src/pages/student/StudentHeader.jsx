@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, Menu, Radio, ShieldCheck } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentHeader = ({ onOpenMobileMenu, onOpenQuickScan }) => {
+export default function StudentHeader({ onOpenMobileMenu, onOpenQuickScan }) {
   const { showToast } = useAdmin();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(2);

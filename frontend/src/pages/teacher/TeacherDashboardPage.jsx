@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { ScrollReveal } from '../../shared/components/ScrollReveal';
-export const TeacherDashboardPage = () => {
+export default function TeacherDashboardPage() {
   const {
     setTeacherTab,
     setIsAttendanceModalOpen,

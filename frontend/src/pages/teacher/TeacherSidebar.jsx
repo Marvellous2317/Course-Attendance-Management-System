@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 
-export const TeacherSidebar = () => {
+export default function TeacherSidebar() {
   const {
     teacherTab,
     setTeacherTab,

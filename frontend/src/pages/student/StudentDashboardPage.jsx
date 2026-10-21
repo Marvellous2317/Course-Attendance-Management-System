@@ -15,13 +15,15 @@ import {
 } from 'lucide-react';
 import { upcomingStudentSessions, studentBulletins } from './studentMockData';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentDashboardPage = ({
+
+
+export default function StudentDashboardPage ({
   courses,
   onNavigateTab,
   onOpenCheckIn,
   onOpenTimetable,
   onSelectCourse,
-}) => {
+}) {
   const { showToast } = useAdmin();
   const container = {
     hidden: { opacity: 0 },

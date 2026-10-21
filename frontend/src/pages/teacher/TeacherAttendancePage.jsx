@@ -11,7 +11,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const TeacherAttendancePage = () => {
+export default function TeacherAttendancePage() {
   const {
     attendanceRecords,
     updateAttendanceStatus,

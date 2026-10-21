@@ -1,6 +1,6 @@
 import { Search, Bell, Menu, ShieldCheck } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const TeacherHeader = () => {
+export default function TeacherHeader() {
   const { setMobileMenuOpen, searchQuery, setSearchQuery, showToast } =
     useAdmin();
   return (

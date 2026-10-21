@@ -2,16 +2,18 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAdmin } from "../../context/AdminContext";
 import { Sidebar } from "../../shared/components/Sidebar";
 import { Header } from "../../shared/components/Header";
-import { DashboardView } from "./DashboardView";
-import { StudentsView } from "./StudentsView";
-import { TeachersView } from "./TeachersView";
-import { CoursesView } from "./CoursesView";
-import { SchedulesView } from "./SchedulesView";
-import { FinancesView } from "./FinancesView";
-import { AnnouncementsView } from "./AnnouncementsView";
-import { SettingsPage } from "../auth/SettingsPage";
-import { AdminModals } from "./AdminModals";
-export const AdminLayout = () => {
+import DashboardView  from "./DashboardView";
+import StudentsView  from "./StudentsView";
+import TeachersView  from "./TeachersView";
+import CoursesView from "./CoursesView";
+import SchedulesView  from "./SchedulesView";
+import FinancesView  from "./FinancesView";
+import AnnouncementsView  from "./AnnouncementsView";
+import SettingsPage from "../auth/SettingsPage";
+import AdminModals from "./AdminModals";
+
+
+export default function AdminLayout () {
   const { activeTab } = useAdmin();
   const renderActiveView = () => {
     switch (activeTab) {
@@ -44,7 +46,7 @@ export const AdminLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* <Header /> */}
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-16 lg:pt-6 pb-8 max-w-7xl w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

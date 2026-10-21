@@ -2,10 +2,11 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import  LandingPage from "../../pages/LandingPage";
-import { LoginPage, RegisterPage, } from "../../pages/auth";
-import { AdminLayout } from "../../pages/admin";
-import { TeacherLayout } from "../../pages/teacher";
-import { StudentPortalPage } from "../../pages/student";
+import LoginPage from "../../pages/auth/LoginPage";
+import RegisterPage from "../../pages/auth/RegisterPage";
+import AdminLayout from "../../pages/admin/AdminLayout";
+import TeacherLayout from "../../pages/teacher/TeacherLayout";
+import StudentPortalPage from "../../pages/student/StudentPortalPage";
 import { ToastContainer } from "../components/ToastContainer";
 
 // Guards

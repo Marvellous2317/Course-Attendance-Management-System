@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { login as loginApi, register as registerApi, changePassword as changePasswordApi } from "../api/auth";
+import { login as loginApi, register as registerApi, changePassword as changePasswordApi, getUserProfile } from "../api/auth";
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -68,6 +68,24 @@ export const useAuth = () => {
         },
     });
 
+     const getProfile = async () => {
+        try {
+            const profile = await getUserProfile();
+            const user = profile?.data || profile;
+            const current = useAuthStore.getState();
+            current.setAuth({
+                token: current.token,
+                user,
+                requiresPasswordChange: current.requiresPasswordChange,
+            });
+            return user;
+        } catch (err) {
+            // Token likely invalid/expired
+            logout();
+            throw err;
+        }
+    };
+
     const logout = () => {
         clearSession();
         queryClient.clear();
@@ -79,6 +97,7 @@ export const useAuth = () => {
         token,
         isAuthenticated,
         requiresPasswordChange,
+        getProfile,
 
         login: loginMutation.mutateAsync,
         register: registerMutation.mutateAsync,

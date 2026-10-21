@@ -17,7 +17,9 @@ import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
 import { EmptyState } from "../../shared/components/EmptyState";
-export const StudentsView = () => {
+
+
+export default function StudentsView () {
   const { students, searchQuery, setSearchQuery, deleteStudent, openModal } =
     useAdmin();
   const [selectedGrade, setSelectedGrade] = useState("All");

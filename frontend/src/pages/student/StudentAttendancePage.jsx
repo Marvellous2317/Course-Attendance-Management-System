@@ -12,11 +12,13 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentAttendancePage = ({
+
+
+export default function StudentAttendancePage ({
   auditRecords,
   onRequestAppeal,
   onVerifyKey,
-}) => {
+}) {
   const { showToast } = useAdmin();
   const [courseFilter, setCourseFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');

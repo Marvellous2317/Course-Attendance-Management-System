@@ -1,77 +1,114 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Lock,
   Eye,
   EyeOff,
   LogOut,
-  Check,
   AlertCircle,
+  Loader2,
+  Shield,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useAuthStore } from "../../shared/store/useAuthStore";
-import { changePassword as changePasswordApi } from "../../shared/api/auth";
-import { useQueryClient } from '@tanstack/react-query';
+import { getUserProfile } from "../../shared/api/auth";
 import useToast from "../../shared/hooks/useToast";
 
-export const SettingsPage = () => {
+// Helper to format role names ({ id: 1, name: "admin" } -> "Super Admin")
+const formatRole = (r) => {
+  const raw = typeof r === "object" ? r?.name : r;
+  if (!raw) return "Super Admin";
+  return raw.toLowerCase() === "admin"
+    ? "Super Admin"
+    : raw.charAt(0).toUpperCase() + raw.slice(1);
+};
 
-  const { logout: authLogout } = useAuth();
-  const { user, clearAuth } = useAuthStore();
+export default function SettingsPage() {
+  const { logout, changePassword, isChangingPassword } = useAuth();
+  const { user, setUser } = useAuthStore();
   const { showSuccess, showError } = useToast();
 
-  const queryClient = useQueryClient();
+  // ---------------------------------------------------------------------------
+  // 1. Initial State from useAuthStore (Instant values on page enter)
+  // ---------------------------------------------------------------------------
+  const initialFirstName =
+    user?.firstName || (user?.name ? user.name.split(" ")[0] : "");
+  const initialLastName =
+    user?.lastName ||
+    (user?.name ? user.name.split(" ").slice(1).join(" ") : "");
 
-  // Profile fields: name, role, and email
-  const [name, setName] = useState(
-    // user?.name || currentUser?.name || "Dean Katherine Sterling"
-  );
-  const [role, setRole] = useState(
-    user?.role
-      ? user.role === "admin"
-        ? "Super Admin"
-        : user.role
-      : currentUser?.title || currentUser?.role || "Super Admin"
-  );
-  const [email, setEmail] = useState(
-    user?.email || currentUser?.email || "admin@othello.edu"
-  );
+  const [firstName, setFirstName] = useState(initialFirstName);
+  const [lastName, setLastName] = useState(initialLastName);
+  const [email, setEmail] = useState(user?.email || "");
+  const [role, setRole] = useState(formatRole(user?.role));
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Password fields
+  // ---------------------------------------------------------------------------
+  // 2. Fetch Latest Profile from /api/profile
+  // ---------------------------------------------------------------------------
+  const { data: profileResponse, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: getUserProfile,
+  });
+
+  // ---------------------------------------------------------------------------
+  // 3. Keep Inputs & Store Synced with Server Profile
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const profile = profileResponse?.data || profileResponse;
+    if (profile) {
+      if (profile.firstName) setFirstName(profile.firstName);
+      if (profile.lastName) setLastName(profile.lastName);
+      if (profile.email) setEmail(profile.email);
+      if (profile.role) setRole(formatRole(profile.role));
+
+      // Update Zustand store using setUser
+      setUser({
+        ...user,
+        ...profile,
+        role: profile.role || user?.role,
+      });
+    }
+  }, [profileResponse]);
+
+  // ---------------------------------------------------------------------------
+  // Password State
+  // ---------------------------------------------------------------------------
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   const [changePasswordData, setChangePasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
-    const { changePassword, isChangingPassword } = useAuth();
-
-  const handleLogout = async () => {
-
-    clearAuth();
-    // clearAllCaches();
-    queryClient.clear();
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+  const handleLogout = () => {
+    logout(); // Calls clearSession(), queryClient.clear(), and navigates to /login
   };
+
   const handleProfileSave = (e) => {
     e.preventDefault();
     setIsSavingProfile(true);
 
     try {
-      // Persist profile updates in auth store
-      if (user && setAuth) {
-        setAuth({ ...user, name, role, email }, token);
+      if (user) {
+        setUser({
+          ...user,
+          firstName,
+          lastName,
+        });
       }
-      showToast("Profile details updated successfully", "success");
+      showSuccess("Profile details updated successfully");
     } catch (err) {
       console.error("Error updating profile:", err);
-      showToast("Failed to update profile", "error");
+      showError("Failed to update profile");
     } finally {
       setIsSavingProfile(false);
     }
@@ -79,23 +116,53 @@ export const SettingsPage = () => {
 
   const handlePasswordDataChange = (event) => {
     const { name, value } = event.target;
+    setPasswordError("");
     setChangePasswordData((prev) => ({
       ...prev,
-      [name]: value?.trim(),
+      [name]: value,
     }));
   };
 
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
-    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
-      showError('New password and confirm password do not match');
+    setPasswordError("");
+
+    if (!changePasswordData.currentPassword) {
+      setPasswordError("Please enter your current password");
+      showError("Please enter your current password");
       return;
     }
-    await changePassword(changePasswordData);
+
+    if (changePasswordData.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      showError("New password must be at least 6 characters");
+      return;
+    }
+
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      setPasswordError("New password and confirm password do not match");
+      showError("New password and confirm password do not match");
+      return;
+    }
+
+    try {
+      await changePassword({
+        currentPassword: changePasswordData.currentPassword,
+        newPassword: changePasswordData.newPassword,
+      });
+
+      setChangePasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      // Handled in mutation onError
+    }
   };
 
   return (
-    <div className="min-h-full bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] bg-slate-100/60 p-2 sm:p-4 lg:p-6 rounded-3xl">
+    <div className="min-h-full p-2 sm:p-4 lg:p-6 rounded-3xl">
       {/* Outer Floating Card Container */}
       <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-xl p-5 sm:p-8 lg:p-10 max-w-6xl mx-auto space-y-8">
         {/* Top Header Bar */}
@@ -114,16 +181,20 @@ export const SettingsPage = () => {
 
         {/* Main Inner Section Card */}
         <div className="bg-[#f8fafc] border border-slate-200/80 rounded-[2rem] p-5 sm:p-8 space-y-8 shadow-xs">
-          {/* User Profile Banner Card with Icon and Red Logout Button */}
+          {/* User Profile Banner Card */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-indigo-700 shadow-xs shrink-0">
-                <User className="w-7 h-7 sm:w-8 sm:h-8" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-indigo-700 shadow-xs shrink-0 font-bold text-xl sm:text-2xl">
+                {firstName ? (
+                  firstName.charAt(0).toUpperCase()
+                ) : (
+                  <User className="w-7 h-7 sm:w-8 sm:h-8" />
+                )}
               </div>
-
+              
             </div>
 
-            {/* Red Logout Button */}
+            {/* Logout Button */}
             <button
               type="button"
               onClick={handleLogout}
@@ -135,27 +206,42 @@ export const SettingsPage = () => {
             </button>
           </div>
 
-          {/* Profile Form: Name, Role, Email with its own Save button at the bottom of these fields */}
+          {/* Profile Form: First Name, Last Name, Role, Email */}
           <form onSubmit={handleProfileSave} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-1">
-              {/* Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pt-1">
+              {/* First Name Input */}
               <div>
                 <label className="block text-[10px] sm:text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Name
+                  First Name
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter name"
-                    disabled
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="First Name"
                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
               </div>
 
-              {/* Role */}
+              {/* Last Name Input */}
+              <div>
+                <label className="block text-[10px] sm:text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Last Name
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Last Name"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Role (Read-only) */}
               <div>
                 <label className="block text-[10px] sm:text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">
                   Role
@@ -164,46 +250,59 @@ export const SettingsPage = () => {
                   <input
                     type="text"
                     value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="Enter role"
                     disabled
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    readOnly
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-500 font-semibold shadow-xs cursor-not-allowed select-none"
                   />
+                  <Shield className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
 
-              {/* Email */}
+              {/* Email (Non-editable) */}
               <div>
-                <label className="block text-[10px] sm:text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Email
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[10px] sm:text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                    Email Address
+                  </label>
+                  <span className="text-[10px] font-semibold text-slate-400">
+                    Read-only
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter email"
                     disabled
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    readOnly
+                    placeholder="admin@school.edu"
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-500 font-medium shadow-xs cursor-not-allowed select-none pr-10"
+                    title="Email cannot be changed"
                   />
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
             </div>
 
-            {/* Button directly at the bottom of the name, role, and email fields */}
+            {/* Profile Save Changes Button */}
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 disabled={isSavingProfile}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {/* <Check className="w-4 h-4 text-emerald-400" /> */}
-                <span>{isSavingProfile ? "Saving..." : "Save Changes"}</span>
+                {isSavingProfile ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Changes</span>
+                )}
               </button>
             </div>
           </form>
 
-          {/* Change Password Section - White Card within the main card */}
+          {/* Change Password Section */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-7 shadow-xs">
             <form onSubmit={handlePasswordSubmit} className="space-y-5">
               <div className="flex items-center gap-3">
@@ -236,6 +335,7 @@ export const SettingsPage = () => {
                   <div className="relative">
                     <input
                       type={showCurrentPassword ? "text" : "password"}
+                      name="currentPassword"
                       value={changePasswordData.currentPassword}
                       onChange={handlePasswordDataChange}
                       placeholder="Current password"
@@ -263,6 +363,7 @@ export const SettingsPage = () => {
                   <div className="relative">
                     <input
                       type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
                       value={changePasswordData.newPassword}
                       onChange={handlePasswordDataChange}
                       placeholder="New password"
@@ -290,6 +391,7 @@ export const SettingsPage = () => {
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
                       value={changePasswordData.confirmPassword}
                       onChange={handlePasswordDataChange}
                       placeholder="Confirm password"
@@ -312,15 +414,24 @@ export const SettingsPage = () => {
                 </div>
               </div>
 
-              {/* Password Section's Own Button */}
+              {/* Change Password Submit Button */}
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
                   disabled={isChangingPassword}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {/* <Lock className="w-4 h-4 text-indigo-400" /> */}
-                  <span>{isChangingPassword ? "Updating..." : "Change Password"}</span>
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4 text-indigo-400" />
+                      <span>Change Password</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -329,4 +440,4 @@ export const SettingsPage = () => {
       </div>
     </div>
   );
-};
+}

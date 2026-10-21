@@ -5,7 +5,9 @@ import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
 import { EmptyState } from "../../shared/components/EmptyState";
-export const SchedulesView = () => {
+
+
+export default function SchedulesView () {
   const { schedules, showToast } = useAdmin();
   const [activeDay, setActiveDay] = useState("Monday");
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];

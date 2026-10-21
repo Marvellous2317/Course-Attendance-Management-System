@@ -16,7 +16,7 @@ import {
   CalendarCheck,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const TeacherSchedulePage = () => {
+export default function TeacherSchedulePage() {
   const { setIsAttendanceModalOpen, showToast } = useAdmin();
   const [scheduleView, setScheduleView] = useState('grid');
   return (

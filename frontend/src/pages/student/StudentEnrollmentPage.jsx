@@ -13,14 +13,16 @@ import {
   Award,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentEnrollmentPage = ({
+
+
+export default function StudentEnrollmentPage({
   electives,
   enrolledCredits,
   maxCredits,
   onOpenElectiveModal,
   onEnrollElective,
   onOpenTimetableMatrix,
-}) => {
+}) {
   const { showToast } = useAdmin();
   const [selectedTrack, setSelectedTrack] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');

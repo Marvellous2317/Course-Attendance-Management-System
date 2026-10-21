@@ -15,7 +15,9 @@ import { Badge } from "../../shared/components/Badge";
 import { StatCard } from "../../shared/components/StatCard";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
 import { EmptyState } from "../../shared/components/EmptyState";
-export const FinancesView = () => {
+
+
+export default function FinancesView () {
   const {
     invoices,
     toggleInvoiceStatus,

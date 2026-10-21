@@ -6,15 +6,16 @@ import {
   studentElectivesInitial,
   studentAuditRecordsInitial,
 } from './studentMockData';
-import { StudentSidebar } from './StudentSidebar';
-import { StudentHeader } from './StudentHeader';
-import { StudentDashboardPage } from './StudentDashboardPage';
-import { StudentCoursesPage } from './StudentCoursesPage';
-import { StudentEnrollmentPage } from './StudentEnrollmentPage';
-import { StudentAttendancePage } from './StudentAttendancePage';
-import { SettingsPage } from '../auth/SettingsPage';
-import { StudentModals } from './StudentModals';
-export const StudentPortalPage = () => {
+import StudentSidebar from './StudentSidebar';
+import StudentHeader from './StudentHeader';
+import StudentDashboardPage from './StudentDashboardPage';
+import StudentCoursesPage from './StudentCoursesPage';
+import StudentEnrollmentPage from './StudentEnrollmentPage';
+import StudentAttendancePage from './StudentAttendancePage';
+import SettingsPage from '../auth/SettingsPage';
+import StudentModals from './StudentModals';
+
+export default function StudentPortalPage() {
   const {
     currentUser,
     switchToAdmin,

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -9,6 +10,8 @@ import {
   BellRing,
   Settings,
   ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   LogOut,
   Globe,
 } from 'lucide-react';
@@ -29,6 +32,40 @@ export const Sidebar = () => {
     setAppView,
     currentUser,
   } = useAdmin();
+
+  // Close mobile drawer on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
+
+  // Close mobile drawer if resized to desktop breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   const pendingInvoicesCount = invoices.filter(
     (i) => i.status === 'Pending' || i.status === 'Overdue',
@@ -51,7 +88,28 @@ export const Sidebar = () => {
     // look like they "grow out of" the page.
     <div className="flex flex-col h-full select-none bg-primary-900 [--page-bg:var(--color-slate-50)]">
       {/* Brand Header */}
-      <div className="h-18 flex items-center px-4 shrink-0 justify-between">
+      <div className="h-18 flex items-center px-4 shrink-0 justify-between relative">
+        {/* Mobile Header Branding */}
+        <div className="flex items-center gap-2.5 lg:hidden">
+          <span className="font-semibold text-white text-sm tracking-tight">
+            Admin Portal
+          </span>
+        </div>
+
+        {/* Mobile Chevron Close Button (<<) */}
+        <div className="lg:hidden ml-auto">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-1.5 rounded-lg text-primary-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center group"
+            title="Close sidebar"
+            aria-label="Close navigation sidebar"
+          >
+            <ChevronsLeft className="w-5 h-5 text-primary-200 group-hover:text-white transition-colors" />
+          </motion.button>
+        </div>
+
         {/* Collapse toggle button on desktop */}
         <div className={`hidden lg:block right-3 absolute ${sidebarCollapsed ? 'justify-center px-2' : ''}`}>
           <motion.button
@@ -198,6 +256,26 @@ export const Sidebar = () => {
 
   return (
     <>
+      {/* Mobile Floating Drawer Trigger Button with ChevronsRight (>>) */}
+      <AnimatePresence>
+        {!mobileMenuOpen && (
+          <motion.button
+            key="mobile-sidebar-toggle-btn"
+            initial={{ opacity: 0, scale: 0.85, x: -10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.85, x: -10 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setMobileMenuOpen(true)}
+            className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-slate-200/90 text-primary-900 hover:text-primary-800 hover:bg-slate-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center cursor-pointer group"
+            title="Open navigation"
+            aria-label="Open navigation sidebar"
+          >
+            <ChevronsRight className="w-5 h-5 text-primary-900 group-hover:text-primary-800 transition-transform group-hover:translate-x-0.5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Animated Sidebar
           No border-r / shadow: any line on the right edge would cut the tab off from the page. */}
       <motion.aside

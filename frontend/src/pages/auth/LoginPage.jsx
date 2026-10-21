@@ -16,7 +16,7 @@ import Images from "../../../public/images/images";
 
 const currentYear = new Date().getFullYear();
 
-export const LoginPage = () => {
+export default function LoginPage () {
   const navigate = useNavigate();
 
   const { login, isLoggingIn } = useAuth();

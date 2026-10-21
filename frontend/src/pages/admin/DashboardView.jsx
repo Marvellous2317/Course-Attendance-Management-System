@@ -18,7 +18,9 @@ import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
-export const DashboardView = () => {
+
+
+export default function DashboardView () {
   const {
     stats,
     students,

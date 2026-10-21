@@ -11,12 +11,12 @@ import {
 import { OthelloLogo } from '../../shared/components/OthelloLogo';
 import { useAdmin } from '../../context/AdminContext';
 
-export const StudentSidebar = ({
+export default function StudentSidebar({
   activeTab,
   setActiveTab,
   mobileOpen,
   setMobileOpen,
-}) => {
+}) {
   const { logout, showToast, sidebarCollapsed, toggleSidebar } = useAdmin();
 
   const navItems = [

@@ -13,7 +13,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentModals = ({
+export default function StudentModals({
   selectedCourse,
   onCloseCourseModal,
   selectedElective,
@@ -26,7 +26,7 @@ export const StudentModals = ({
   checkInCourseName = 'CS-401: Advanced Neural Architectures',
   isTimetableMatrixOpen,
   onCloseTimetableMatrix,
-}) => {
+}) {
   const { showToast } = useAdmin();
   const [appealCourse, setAppealCourse] = useState('MATH-240');
   const [appealReason, setAppealReason] = useState(

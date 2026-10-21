@@ -5,7 +5,9 @@ import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
-export const AnnouncementsView = () => {
+
+
+export default function AnnouncementsView () {
   const { announcements, openModal } = useAdmin();
   const [selectedAudience, setSelectedAudience] = useState("All");
   const filteredAnnouncements = announcements.filter((anc) => {

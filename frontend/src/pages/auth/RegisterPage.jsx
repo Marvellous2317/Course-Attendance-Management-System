@@ -19,7 +19,7 @@ import { register as registerApi } from "../../shared/api/auth";
 
 const currentYear = new Date().getFullYear();
 
-export const RegisterPage = () => {
+export default function RegisterPage () {
   const navigate = useNavigate();
   const { setAppView, showToast, login } = useAdmin();
   const [fullName, setFullName] = useState("");

@@ -16,11 +16,13 @@ import {
   Layers,
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-export const StudentCoursesPage = ({
+
+
+export default function StudentCoursesPage ({
   courses,
   onSelectCourse,
   onNavigateTab,
-}) => {
+}) {
   const { showToast } = useAdmin();
   const [filterTab, setFilterTab] = useState('all');
   const [searchFilter, setSearchFilter] = useState('');

@@ -1,14 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useAdmin } from '../../context/AdminContext';
-import { TeacherSidebar } from './TeacherSidebar';
-import { TeacherHeader } from './TeacherHeader';
-import { TeacherDashboardPage } from './TeacherDashboardPage';
-import { TeacherCoursesPage } from './TeacherCoursesPage';
-import { TeacherAttendancePage } from './TeacherAttendancePage';
-import { TeacherSchedulePage } from './TeacherSchedulePage';
-import { SettingsPage } from '../auth/SettingsPage';
-import { TeacherModals } from './TeacherModals';
-export const TeacherLayout = () => {
+import TeacherSidebar from './TeacherSidebar';
+import TeacherHeader from './TeacherHeader';
+import TeacherDashboardPage from './TeacherDashboardPage';
+import TeacherCoursesPage from './TeacherCoursesPage';
+import TeacherAttendancePage from './TeacherAttendancePage';
+import TeacherSchedulePage from './TeacherSchedulePage';
+import SettingsPage from '../auth/SettingsPage';
+import TeacherModals from './TeacherModals';
+
+export default function TeacherLayout() {
   const { teacherTab } = useAdmin();
   const renderActiveTab = () => {
     switch (teacherTab) {
