@@ -52,8 +52,8 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/courses", chain(h.GetAllCourses, admin...))
 	mux.HandleFunc("POST /api/admin/courses", chain(h.CreateCourse, admin...))
 	mux.HandleFunc("GET /api/admin/courses/{id}", chain(h.GetCourse, admin...))
-	mux.HandleFunc("GET /api/admin/courses/{id}/teachers", chain(h.GetCourse, admin...))
-	mux.HandleFunc("GET /api/admin/courses/{id}/students", chain(h.GetCourse, admin...))
+	mux.HandleFunc("GET /api/admin/courses/{id}/teachers", chain(h.GetCourseTeachers, admin...))
+	mux.HandleFunc("GET /api/admin/courses/{id}/students", chain(h.GetCourseStudents, admin...))
 	mux.HandleFunc("PATCH /api/admin/courses/{id}", chain(h.UpdateCourse, admin...))
 	mux.HandleFunc("DELETE /api/admin/courses/{id}", chain(h.DeleteCourse, admin...))
 	mux.HandleFunc("PATCH /api/admin/courses/{id}/restore", chain(h.RestoreCourse, admin...))
@@ -77,6 +77,30 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/admin/students/{id}/offerings", chain(h.UnassignOfferings, admin...))
 	mux.HandleFunc("DELETE /api/admin/students/{id}", chain(h.DeleteStudent, admin...))
 	mux.HandleFunc("PATCH /api/admin/students/{id}/restore", chain(h.RestoreStudent, admin...))
+
+	// teacher routes (scoped to the courses and offerings the teacher owns or teaches)
+	mux.HandleFunc("POST /api/teacher/courses", chain(h.CreateTeacherCourse, instructor...))
+	mux.HandleFunc("GET /api/teacher/courses", chain(h.GetTeacherCourses, instructor...))
+	mux.HandleFunc("GET /api/teacher/courses/{id}", chain(h.GetTeacherCourse, instructor...))
+	mux.HandleFunc("POST /api/teacher/courses/{id}/offerings", chain(h.CreateOffering, instructor...))
+	mux.HandleFunc("GET /api/teacher/offerings", chain(h.GetTeacherOfferings, instructor...))
+	mux.HandleFunc("GET /api/teacher/offerings/{id}/students", chain(h.GetOfferingStudents, instructor...))
+	mux.HandleFunc("POST /api/teacher/offerings/{id}/sessions", chain(h.CreateSession, instructor...))
+	mux.HandleFunc("GET /api/teacher/offerings/{id}/sessions", chain(h.ListSessions, instructor...))
+	mux.HandleFunc("GET /api/teacher/sessions/{id}/attendance", chain(h.GetSessionAttendance, instructor...))
+	mux.HandleFunc("PUT /api/teacher/sessions/{id}/attendance", chain(h.MarkAttendance, instructor...))
+	mux.HandleFunc("GET /api/teacher/dashboard", chain(h.GetTeacherDashboard, instructor...))
+
+	// student routes (scoped to the authenticated student)
+	mux.HandleFunc("GET /api/student/offerings", chain(h.GetOfferingCatalogue, student...))
+	mux.HandleFunc("GET /api/student/enrollments", chain(h.GetStudentEnrollments, student...))
+	mux.HandleFunc("POST /api/student/enrollments", chain(h.EnrollStudent, student...))
+	mux.HandleFunc("DELETE /api/student/enrollments/{offeringId}", chain(h.DropEnrollment, student...))
+	mux.HandleFunc("GET /api/student/attendance", chain(h.GetMyAttendance, student...))
+	mux.HandleFunc("GET /api/student/dashboard", chain(h.GetStudentDashboard, student...))
+
+	// admin dashboard
+	mux.HandleFunc("GET /api/admin/dashboard", chain(h.GetAdminDashboard, admin...))
 
 	if os.Getenv("ENABLE_SWAGGER") == "true" {
 		mux.Handle("GET /swagger/", httpSwagger.WrapHandler)

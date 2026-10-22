@@ -37,6 +37,12 @@ var DB *gorm.DB
 // @tag.description Course administration
 // @tag.name teachers
 // @tag.description Teacher administration
+// @tag.name teacher
+// @tag.description Teacher-scoped course, offering and enrollment views
+// @tag.name student
+// @tag.description Student-scoped course catalogue, enrollment and attendance
+// @tag.name admin
+// @tag.description Admin overview and dashboard
 // @tag.name students
 // @tag.description Student administration
 func main() {

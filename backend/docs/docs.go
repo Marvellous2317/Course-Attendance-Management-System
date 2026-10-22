@@ -333,6 +333,169 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/courses/{id}/students": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the students enrolled in any offering of the course. A student enrolled in several batches appears once.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "List students of a course",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Course ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CourseStudentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/courses/{id}/teachers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the teachers who created the course, are assigned to it, or instruct one of its offerings.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "courses"
+                ],
+                "summary": "List teachers of a course",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Course ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CourseTeachersResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns system-wide totals for teachers, students, courses, offerings, enrollments and attendance.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Admin dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AdminDashboardResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/roles": {
             "get": {
                 "security": [
@@ -958,7 +1121,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Replaces the student's current enrollments with the supplied course offering IDs. Send an empty array to clear all enrollments.",
+                "description": "Adds the supplied course offering IDs to the student's enrollments. Existing enrollments are kept. Use the DELETE endpoint to remove offerings.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1515,7 +1678,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Sets a new password for the authenticated user. newPassword must match confirmPassword.",
+                "description": "Sets a new password for the authenticated user. oldPassword must match the current password and newPassword must match confirmPassword.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1546,6 +1709,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -1763,6 +1932,903 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/student/attendance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated student's attendance for each offering they are enrolled in, including per-session records and an attendance percentage over the sessions that were marked.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "My attendance",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MyAttendanceResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns totals for the authenticated student's enrollments, upcoming sessions and attendance.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "Student dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.StudentDashboardResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/enrollments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the course offerings the authenticated student is enrolled in, newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "List my enrollments",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds the authenticated student to the given offerings. Existing enrollments are kept.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "Enroll in course offerings",
+                "parameters": [
+                    {
+                        "description": "Course offering IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AssignOfferingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingAssignmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/enrollments/{offeringId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the authenticated student's enrollment in an offering. The offering and any attendance already recorded are kept.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "Drop a course offering",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Course offering ID",
+                        "name": "offeringId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/offerings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns every active course offering with its course and instructor, newest first. Use the enrollments endpoint to enroll.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "student"
+                ],
+                "summary": "Browse course offerings",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/courses": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the courses the authenticated teacher created or is assigned to, newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "List my courses",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CourseCollectionResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a course owned by the authenticated teacher.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Create a course",
+                "parameters": [
+                    {
+                        "description": "Course payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateCourseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CourseDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/courses/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a course the authenticated teacher created or is assigned to.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Get one of my courses",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Course ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CourseDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/courses/{id}/offerings": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Schedules a batch of one of the teacher's courses. The authenticated teacher becomes the instructor. Students enroll in offerings, not courses.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Create a course offering",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Course ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Offering payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateOfferingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns totals for the authenticated teacher's courses, offerings, enrolled students, sessions and attendance.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Teacher dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TeacherDashboardResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/offerings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the course offerings the authenticated teacher instructs, newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "List my offerings",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/offerings/{id}/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the class sessions of one of the teacher's offerings, in chronological order.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "List class sessions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Offering ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SessionListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a class session to one of the teacher's offerings.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Create a class session",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Offering ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Session payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SessionDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/offerings/{id}/students": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the students enrolled in an offering the authenticated teacher instructs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "List students enrolled in my offering",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Offering ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OfferingStudentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/sessions/{id}/attendance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns every student enrolled in the session's offering with their attendance status. Present is null if not yet marked.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Get attendance for a session",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page (max 50)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AttendanceRosterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets present or absent for enrolled students in a session the teacher instructs. Re-marking a student overwrites their status. Students not in the list are left unchanged.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "teacher"
+                ],
+                "summary": "Mark attendance",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Attendance records",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MarkAttendanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AttendanceRosterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1775,6 +2841,55 @@ const docTemplate = `{
                 "valid": {
                     "description": "Valid is true if Time is not NULL",
                     "type": "boolean"
+                }
+            }
+        },
+        "handlers.AdminDashboard": {
+            "type": "object",
+            "properties": {
+                "attendanceMarked": {
+                    "type": "integer",
+                    "example": 900
+                },
+                "attendancePercentage": {
+                    "type": "number",
+                    "example": 90
+                },
+                "attendancePresent": {
+                    "type": "integer",
+                    "example": 810
+                },
+                "totalCourses": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "totalEnrollments": {
+                    "type": "integer",
+                    "example": 512
+                },
+                "totalOfferings": {
+                    "type": "integer",
+                    "example": 14
+                },
+                "totalStudents": {
+                    "type": "integer",
+                    "example": 240
+                },
+                "totalTeachers": {
+                    "type": "integer",
+                    "example": 12
+                }
+            }
+        },
+        "handlers.AdminDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.AdminDashboard"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
                 }
             }
         },
@@ -1791,6 +2906,80 @@ const docTemplate = `{
                         2,
                         3
                     ]
+                }
+            }
+        },
+        "handlers.AttendanceMark": {
+            "type": "object",
+            "properties": {
+                "present": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "studentId": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
+        "handlers.AttendanceRecord": {
+            "type": "object",
+            "properties": {
+                "present": {
+                    "type": "boolean"
+                },
+                "sessionId": {
+                    "type": "integer",
+                    "example": 31
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "Week 1: Introduction"
+                }
+            }
+        },
+        "handlers.AttendanceRosterEntry": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                },
+                "firstName": {
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "lastName": {
+                    "type": "string",
+                    "example": "Lovelace"
+                },
+                "present": {
+                    "type": "boolean"
+                },
+                "studentId": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
+        "handlers.AttendanceRosterResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AttendanceRosterEntry"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -1859,6 +3048,24 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CourseCollectionResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CourseResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
+                }
+            }
+        },
         "handlers.CourseDataResponse": {
             "type": "object",
             "properties": {
@@ -1899,6 +3106,9 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "createdBy": {
+                    "$ref": "#/definitions/handlers.UserSummary"
+                },
                 "deletedAt": {
                     "type": "string"
                 },
@@ -1919,6 +3129,42 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CourseStudentsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.StudentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
+                }
+            }
+        },
+        "handlers.CourseTeachersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.TeacherResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
+                }
+            }
+        },
         "handlers.CreateCourseRequest": {
             "type": "object",
             "properties": {
@@ -1936,6 +3182,31 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CreateOfferingRequest": {
+            "type": "object",
+            "properties": {
+                "batchCode": {
+                    "type": "string",
+                    "example": "GO101-A"
+                },
+                "classDate": {
+                    "type": "string",
+                    "example": "2026-11-02T00:00:00Z"
+                },
+                "duration": {
+                    "type": "integer",
+                    "example": 90
+                },
+                "sessions": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "startTime": {
+                    "type": "string",
+                    "example": "2026-11-02T09:00:00Z"
+                }
+            }
+        },
         "handlers.CreateRoleRequest": {
             "type": "object",
             "properties": {
@@ -1946,6 +3217,23 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "instructor"
+                }
+            }
+        },
+        "handlers.CreateSessionRequest": {
+            "type": "object",
+            "properties": {
+                "endTime": {
+                    "type": "string",
+                    "example": "2026-11-02T10:30:00Z"
+                },
+                "startTime": {
+                    "type": "string",
+                    "example": "2026-11-02T09:00:00Z"
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "Week 1: Introduction"
                 }
             }
         },
@@ -2083,12 +3371,41 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.MarkAttendanceRequest": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AttendanceMark"
+                    }
+                }
+            }
+        },
         "handlers.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
                     "type": "string",
                     "example": "Operation successful"
+                }
+            }
+        },
+        "handlers.MyAttendanceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.OfferingAttendance"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -2121,6 +3438,130 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Request successful"
+                }
+            }
+        },
+        "handlers.OfferingAttendance": {
+            "type": "object",
+            "properties": {
+                "attended": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "batchCode": {
+                    "type": "string",
+                    "example": "GO101-A"
+                },
+                "courseTitle": {
+                    "type": "string",
+                    "example": "Introduction to Go"
+                },
+                "marked": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "offeringId": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "percentage": {
+                    "type": "number",
+                    "example": 83.33
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AttendanceRecord"
+                    }
+                }
+            }
+        },
+        "handlers.OfferingDataResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.OfferingResponse"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                }
+            }
+        },
+        "handlers.OfferingListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.OfferingResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
+                }
+            }
+        },
+        "handlers.OfferingResponse": {
+            "type": "object",
+            "properties": {
+                "batchCode": {
+                    "type": "string",
+                    "example": "GO101-A"
+                },
+                "classDate": {
+                    "type": "string"
+                },
+                "course": {
+                    "$ref": "#/definitions/handlers.CourseResponse"
+                },
+                "courseId": {
+                    "type": "integer",
+                    "example": 7
+                },
+                "duration": {
+                    "type": "integer",
+                    "example": 90
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "instructor": {
+                    "$ref": "#/definitions/handlers.UserSummary"
+                },
+                "instructorId": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "sessions": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "startTime": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.OfferingStudentsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.StudentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -2310,6 +3751,96 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.SessionDataResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.SessionResponse"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                }
+            }
+        },
+        "handlers.SessionListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.SessionResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
+                }
+            }
+        },
+        "handlers.SessionResponse": {
+            "type": "object",
+            "properties": {
+                "endTime": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 31
+                },
+                "offeringId": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "Week 1: Introduction"
+                }
+            }
+        },
+        "handlers.StudentDashboard": {
+            "type": "object",
+            "properties": {
+                "attendanceMarked": {
+                    "type": "integer",
+                    "example": 18
+                },
+                "attendancePercentage": {
+                    "type": "number",
+                    "example": 88.89
+                },
+                "attendancePresent": {
+                    "type": "integer",
+                    "example": 16
+                },
+                "enrolledOfferings": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "upcomingSessions": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
+        "handlers.StudentDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.StudentDashboard"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
+                }
+            }
+        },
         "handlers.StudentDataResponse": {
             "type": "object",
             "properties": {
@@ -2395,6 +3926,51 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.TeacherDashboard": {
+            "type": "object",
+            "properties": {
+                "attendanceMarked": {
+                    "type": "integer",
+                    "example": 300
+                },
+                "attendancePercentage": {
+                    "type": "number",
+                    "example": 90
+                },
+                "attendancePresent": {
+                    "type": "integer",
+                    "example": 270
+                },
+                "totalCourses": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "totalOfferings": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "totalSessions": {
+                    "type": "integer",
+                    "example": 24
+                },
+                "totalStudents": {
+                    "type": "integer",
+                    "example": 38
+                }
+            }
+        },
+        "handlers.TeacherDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.TeacherDashboard"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Request successful"
                 }
             }
         },
@@ -2556,6 +4132,27 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.UserSummary": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "grace@example.com"
+                },
+                "firstName": {
+                    "type": "string",
+                    "example": "Grace"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "lastName": {
+                    "type": "string",
+                    "example": "Hopper"
+                }
+            }
+        },
         "models.Attendance": {
             "type": "object",
             "properties": {
@@ -2573,6 +4170,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "present": {
+                    "type": "boolean"
                 },
                 "updatedAt": {
                     "type": "string"
@@ -2823,9 +4423,6 @@ const docTemplate = `{
                 "last_name": {
                     "type": "string"
                 },
-                "require_password_change": {
-                    "type": "boolean"
-                },
                 "role": {
                     "$ref": "#/definitions/models.Role"
                 },
@@ -2868,6 +4465,18 @@ const docTemplate = `{
         {
             "description": "Teacher administration",
             "name": "teachers"
+        },
+        {
+            "description": "Teacher-scoped course, offering and enrollment views",
+            "name": "teacher"
+        },
+        {
+            "description": "Student-scoped course catalogue, enrollment and attendance",
+            "name": "student"
+        },
+        {
+            "description": "Admin overview and dashboard",
+            "name": "admin"
         },
         {
             "description": "Student administration",

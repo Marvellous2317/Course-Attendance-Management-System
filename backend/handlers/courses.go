@@ -14,13 +14,14 @@ import (
 
 // CourseResponse is the public representation of a course.
 type CourseResponse struct {
-	Title       string     `json:"title" example:"Introduction to Go"`
-	Description string     `json:"description,omitempty" example:"Basics of the Go language"`
-	Code        string     `json:"code" example:"GO101"`
-	ID          uint       `json:"id" example:"7"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
-	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
+	Title       string      `json:"title" example:"Introduction to Go"`
+	Description string      `json:"description,omitempty" example:"Basics of the Go language"`
+	Code        string      `json:"code" example:"GO101"`
+	ID          uint        `json:"id" example:"7"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	UpdatedAt   time.Time   `json:"updatedAt"`
+	DeletedAt   *time.Time  `json:"deletedAt,omitempty"`
+	CreatedBy   UserSummary `json:"createdBy"`
 }
 
 // CourseListResponse is returned by GetAllCourses.
@@ -34,6 +35,20 @@ type CourseListResponse struct {
 type CourseDataResponse struct {
 	Message string         `json:"message" example:"Request successful"`
 	Data    CourseResponse `json:"data"`
+}
+
+// CourseTeachersResponse is returned by GetCourseTeachers.
+type CourseTeachersResponse struct {
+	Message string            `json:"message" example:"Request successful"`
+	Data    []TeacherResponse `json:"data"`
+	Meta    PaginationMeta    `json:"meta"`
+}
+
+// CourseStudentsResponse is returned by GetCourseStudents.
+type CourseStudentsResponse struct {
+	Message string            `json:"message" example:"Request successful"`
+	Data    []StudentResponse `json:"data"`
+	Meta    PaginationMeta    `json:"meta"`
 }
 
 // CreateCourseRequest is the payload accepted by CreateCourse.
@@ -50,6 +65,11 @@ type UpdateCourseRequest struct {
 	Code        string `json:"code" example:"GO101"`
 }
 
+// courseWithCreator preloads the teacher who created the course, which the response needs.
+func (h *Handler) courseWithCreator() *gorm.DB {
+	return h.DB.Preload("CreatedByUser")
+}
+
 func toCourseResponse(course models.Course) CourseResponse {
 	var deletedAt *time.Time
 	if course.DeletedAt.Valid {
@@ -64,6 +84,12 @@ func toCourseResponse(course models.Course) CourseResponse {
 		ID:          course.ID,
 		CreatedAt:   course.CreatedAt,
 		UpdatedAt:   course.UpdatedAt,
+		CreatedBy: UserSummary{
+			ID:        course.CreatedByUser.ID,
+			FirstName: course.CreatedByUser.FirstName,
+			LastName:  course.CreatedByUser.LastName,
+			Email:     course.CreatedByUser.Email,
+		},
 	}
 }
 
@@ -84,22 +110,7 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 
 	showDeleted, _ := strconv.ParseBool(r.URL.Query().Get("isDeleted"))
 
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-
-	if page <= 0 {
-		page = 1
-	}
-
-	perPage, _ := strconv.Atoi(r.URL.Query().Get("perPage"))
-
-	switch {
-	case perPage <= 0:
-		perPage = 20
-	case perPage > 50:
-		perPage = 50
-	}
-
-	offset := (page - 1) * perPage
+	page, perPage, offset := parsePagination(r)
 
 	// GORM's soft-delete scope hides rows with deleted_at set unless Unscoped is used,
 	// so deleted courses are only visible when explicitly requested.
@@ -119,7 +130,7 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := scope().Order("id DESC").Limit(perPage).Offset(offset).Find(&courses).Error; err != nil {
+	if err := scope().Preload("CreatedByUser").Order("id DESC").Limit(perPage).Offset(offset).Find(&courses).Error; err != nil {
 		log.Printf("fetch courses: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch courses"})
 		return
@@ -130,17 +141,10 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 		response = append(response, toCourseResponse(course))
 	}
 
-	totalPages := int((totalRecords + int64(perPage) - 1) / int64(perPage))
-
 	writeJSON(w, http.StatusOK, CourseListResponse{
 		Message: "Request successful",
 		Data:    response,
-		Meta: PaginationMeta{
-			TotalRecords: totalRecords,
-			TotalPages:   totalPages,
-			Page:         page,
-			PerPage:      perPage,
-		},
+		Meta:    newPaginationMeta(totalRecords, page, perPage),
 	})
 }
 
@@ -167,7 +171,7 @@ func (h *Handler) GetCourse(w http.ResponseWriter, r *http.Request) {
 
 	var course models.Course
 
-	result := h.DB.First(&course, id)
+	result := h.courseWithCreator().First(&course, id)
 
 	if result.Error != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Course not found"})
@@ -180,29 +184,141 @@ func (h *Handler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetCourseTeachers godoc
+// @Summary      List teachers of a course
+// @Description  Returns the teachers who created the course, are assigned to it, or instruct one of its offerings.
+// @Tags         courses
+// @Produce      json
+// @Param        id       path   int  true   "Course ID"
+// @Param        page     query  int  false  "Page number"              default(1)
+// @Param        perPage  query  int  false  "Items per page (max 50)"  default(20)
+// @Success      200  {object}  CourseTeachersResponse
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/courses/{id}/teachers [get]
 func (h *Handler) GetCourseTeachers(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(r.PathValue("id"))
 
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid course ID"})
 		return
 	}
 
-	var course models.Course
-
-	result := h.DB.First(&course, id)
-
-	if result.Error != nil {
+	if !h.courseExists(uint(id)) {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Course not found"})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, CourseDataResponse{
+	page, perPage, offset := parsePagination(r)
+
+	scope := h.DB.Model(&models.User{}).
+		Joins("JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL AND roles.name = ?", "instructor").
+		Where(`(users.id IN (SELECT user_id FROM course_teachers WHERE course_id = ?)
+			OR users.id IN (SELECT instructor_id FROM course_offerings WHERE course_id = ? AND deleted_at IS NULL)
+			OR users.id IN (SELECT created_by FROM courses WHERE id = ? AND deleted_at IS NULL))`, id, id, id)
+
+	var total int64
+
+	if err := scope.Count(&total).Error; err != nil {
+		log.Printf("count course teachers: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
+		return
+	}
+
+	var teachers []models.User
+
+	if err := scope.Preload("Role").Order("users.id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+		log.Printf("fetch course teachers: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
+		return
+	}
+
+	response := make([]TeacherResponse, 0, len(teachers))
+	for _, teacher := range teachers {
+		response = append(response, toTeacherResponse(teacher))
+	}
+
+	writeJSON(w, http.StatusOK, CourseTeachersResponse{
 		Message: "Request successful",
-		Data:    toCourseResponse(course),
+		Data:    response,
+		Meta:    newPaginationMeta(total, page, perPage),
 	})
+}
+
+// GetCourseStudents godoc
+// @Summary      List students of a course
+// @Description  Returns the students enrolled in any offering of the course. A student enrolled in several batches appears once.
+// @Tags         courses
+// @Produce      json
+// @Param        id       path   int  true   "Course ID"
+// @Param        page     query  int  false  "Page number"              default(1)
+// @Param        perPage  query  int  false  "Items per page (max 50)"  default(20)
+// @Success      200  {object}  CourseStudentsResponse
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/courses/{id}/students [get]
+func (h *Handler) GetCourseStudents(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid course ID"})
+		return
+	}
+
+	if !h.courseExists(uint(id)) {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Course not found"})
+		return
+	}
+
+	page, perPage, offset := parsePagination(r)
+
+	scope := h.DB.Model(&models.User{}).
+		Where(`users.id IN (
+			SELECT enrollments.user_id FROM enrollments
+			JOIN course_offerings ON course_offerings.id = enrollments.course_offering_id AND course_offerings.deleted_at IS NULL
+			WHERE course_offerings.course_id = ?)`, id)
+
+	var total int64
+
+	if err := scope.Count(&total).Error; err != nil {
+		log.Printf("count course students: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch students"})
+		return
+	}
+
+	var students []models.User
+
+	if err := scope.Preload("Role").Order("users.id DESC").Limit(perPage).Offset(offset).Find(&students).Error; err != nil {
+		log.Printf("fetch course students: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch students"})
+		return
+	}
+
+	response := make([]StudentResponse, 0, len(students))
+	for _, student := range students {
+		response = append(response, toStudentResponse(student))
+	}
+
+	writeJSON(w, http.StatusOK, CourseStudentsResponse{
+		Message: "Request successful",
+		Data:    response,
+		Meta:    newPaginationMeta(total, page, perPage),
+	})
+}
+
+// courseExists reports whether an active course with the given ID exists.
+func (h *Handler) courseExists(id uint) bool {
+	var count int64
+
+	if err := h.DB.Model(&models.Course{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		return false
+	}
+
+	return count > 0
 }
 
 // CreateCourse godoc
@@ -238,6 +354,12 @@ func (h *Handler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 
 	if result.Error != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: result.Error.Error()})
+		return
+	}
+
+	if err := h.courseWithCreator().First(&course, course.ID).Error; err != nil {
+		log.Printf("reload created course: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to load course"})
 		return
 	}
 
@@ -303,6 +425,12 @@ func (h *Handler) UpdateCourse(w http.ResponseWriter, r *http.Request) {
 
 	if result.Error != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: result.Error.Error()})
+		return
+	}
+
+	if err := h.courseWithCreator().First(&course, course.ID).Error; err != nil {
+		log.Printf("reload updated course: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to load course"})
 		return
 	}
 

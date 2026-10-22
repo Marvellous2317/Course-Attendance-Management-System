@@ -470,7 +470,7 @@ func (h *Handler) RestoreStudent(w http.ResponseWriter, r *http.Request) {
 
 // AssignOfferings godoc
 // @Summary      Enroll a student in course offerings
-// @Description  Replaces the student's current enrollments with the supplied course offering IDs. Send an empty array to clear all enrollments.
+// @Description  Adds the supplied course offering IDs to the student's enrollments. Existing enrollments are kept. Use the DELETE endpoint to remove offerings.
 // @Tags         students
 // @Accept       json
 // @Produce      json
@@ -523,7 +523,7 @@ func (h *Handler) AssignOfferings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.DB.Transaction(func(tx *gorm.DB) error {
-		return tx.Model(&existingStudent).Association("CourseOffered").Replace(offerings)
+		return tx.Model(&existingStudent).Association("CourseOffered").Append(offerings)
 	})
 
 	if err != nil {

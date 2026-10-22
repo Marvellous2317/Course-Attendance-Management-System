@@ -8,6 +8,41 @@ definitions:
         description: Valid is true if Time is not NULL
         type: boolean
     type: object
+  handlers.AdminDashboard:
+    properties:
+      attendanceMarked:
+        example: 900
+        type: integer
+      attendancePercentage:
+        example: 90
+        type: number
+      attendancePresent:
+        example: 810
+        type: integer
+      totalCourses:
+        example: 8
+        type: integer
+      totalEnrollments:
+        example: 512
+        type: integer
+      totalOfferings:
+        example: 14
+        type: integer
+      totalStudents:
+        example: 240
+        type: integer
+      totalTeachers:
+        example: 12
+        type: integer
+    type: object
+  handlers.AdminDashboardResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.AdminDashboard'
+      message:
+        example: Request successful
+        type: string
+    type: object
   handlers.AssignOfferingsRequest:
     properties:
       offeringIds:
@@ -18,6 +53,57 @@ definitions:
         items:
           type: integer
         type: array
+    type: object
+  handlers.AttendanceMark:
+    properties:
+      present:
+        example: true
+        type: boolean
+      studentId:
+        example: 42
+        type: integer
+    type: object
+  handlers.AttendanceRecord:
+    properties:
+      present:
+        type: boolean
+      sessionId:
+        example: 31
+        type: integer
+      startTime:
+        type: string
+      topic:
+        example: 'Week 1: Introduction'
+        type: string
+    type: object
+  handlers.AttendanceRosterEntry:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+      firstName:
+        example: Ada
+        type: string
+      lastName:
+        example: Lovelace
+        type: string
+      present:
+        type: boolean
+      studentId:
+        example: 42
+        type: integer
+    type: object
+  handlers.AttendanceRosterResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.AttendanceRosterEntry'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
     type: object
   handlers.ChangePasswordRequest:
     properties:
@@ -64,6 +150,18 @@ definitions:
         example: Request successful
         type: string
     type: object
+  handlers.CourseCollectionResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.CourseResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
+    type: object
   handlers.CourseDataResponse:
     properties:
       data:
@@ -91,6 +189,8 @@ definitions:
         type: string
       createdAt:
         type: string
+      createdBy:
+        $ref: '#/definitions/handlers.UserSummary'
       deletedAt:
         type: string
       description:
@@ -105,6 +205,30 @@ definitions:
       updatedAt:
         type: string
     type: object
+  handlers.CourseStudentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.StudentResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
+    type: object
+  handlers.CourseTeachersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.TeacherResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
+    type: object
   handlers.CreateCourseRequest:
     properties:
       code:
@@ -117,6 +241,24 @@ definitions:
         example: Introduction to Go
         type: string
     type: object
+  handlers.CreateOfferingRequest:
+    properties:
+      batchCode:
+        example: GO101-A
+        type: string
+      classDate:
+        example: "2026-11-02T00:00:00Z"
+        type: string
+      duration:
+        example: 90
+        type: integer
+      sessions:
+        example: 12
+        type: integer
+      startTime:
+        example: "2026-11-02T09:00:00Z"
+        type: string
+    type: object
   handlers.CreateRoleRequest:
     properties:
       description:
@@ -124,6 +266,18 @@ definitions:
         type: string
       name:
         example: instructor
+        type: string
+    type: object
+  handlers.CreateSessionRequest:
+    properties:
+      endTime:
+        example: "2026-11-02T10:30:00Z"
+        type: string
+      startTime:
+        example: "2026-11-02T09:00:00Z"
+        type: string
+      topic:
+        example: 'Week 1: Introduction'
         type: string
     type: object
   handlers.CreateStudentData:
@@ -219,11 +373,30 @@ definitions:
         example: 42
         type: integer
     type: object
+  handlers.MarkAttendanceRequest:
+    properties:
+      records:
+        items:
+          $ref: '#/definitions/handlers.AttendanceMark'
+        type: array
+    type: object
   handlers.MessageResponse:
     properties:
       message:
         example: Operation successful
         type: string
+    type: object
+  handlers.MyAttendanceResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.OfferingAttendance'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
     type: object
   handlers.OfferingAssignmentData:
     properties:
@@ -246,6 +419,92 @@ definitions:
       message:
         example: Request successful
         type: string
+    type: object
+  handlers.OfferingAttendance:
+    properties:
+      attended:
+        example: 5
+        type: integer
+      batchCode:
+        example: GO101-A
+        type: string
+      courseTitle:
+        example: Introduction to Go
+        type: string
+      marked:
+        example: 6
+        type: integer
+      offeringId:
+        example: 5
+        type: integer
+      percentage:
+        example: 83.33
+        type: number
+      records:
+        items:
+          $ref: '#/definitions/handlers.AttendanceRecord'
+        type: array
+    type: object
+  handlers.OfferingDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.OfferingResponse'
+      message:
+        example: Request successful
+        type: string
+    type: object
+  handlers.OfferingListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.OfferingResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
+    type: object
+  handlers.OfferingResponse:
+    properties:
+      batchCode:
+        example: GO101-A
+        type: string
+      classDate:
+        type: string
+      course:
+        $ref: '#/definitions/handlers.CourseResponse'
+      courseId:
+        example: 7
+        type: integer
+      duration:
+        example: 90
+        type: integer
+      id:
+        example: 5
+        type: integer
+      instructor:
+        $ref: '#/definitions/handlers.UserSummary'
+      instructorId:
+        example: 12
+        type: integer
+      sessions:
+        example: 12
+        type: integer
+      startTime:
+        type: string
+    type: object
+  handlers.OfferingStudentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.StudentResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
     type: object
   handlers.PaginationMeta:
     properties:
@@ -376,6 +635,68 @@ definitions:
         example: student
         type: string
     type: object
+  handlers.SessionDataResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.SessionResponse'
+      message:
+        example: Request successful
+        type: string
+    type: object
+  handlers.SessionListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.SessionResponse'
+        type: array
+      message:
+        example: Request successful
+        type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
+    type: object
+  handlers.SessionResponse:
+    properties:
+      endTime:
+        type: string
+      id:
+        example: 31
+        type: integer
+      offeringId:
+        example: 5
+        type: integer
+      startTime:
+        type: string
+      topic:
+        example: 'Week 1: Introduction'
+        type: string
+    type: object
+  handlers.StudentDashboard:
+    properties:
+      attendanceMarked:
+        example: 18
+        type: integer
+      attendancePercentage:
+        example: 88.89
+        type: number
+      attendancePresent:
+        example: 16
+        type: integer
+      enrolledOfferings:
+        example: 3
+        type: integer
+      upcomingSessions:
+        example: 5
+        type: integer
+    type: object
+  handlers.StudentDashboardResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.StudentDashboard'
+      message:
+        example: Request successful
+        type: string
+    type: object
   handlers.StudentDataResponse:
     properties:
       data:
@@ -434,6 +755,38 @@ definitions:
         example: 3
         type: integer
       updatedAt:
+        type: string
+    type: object
+  handlers.TeacherDashboard:
+    properties:
+      attendanceMarked:
+        example: 300
+        type: integer
+      attendancePercentage:
+        example: 90
+        type: number
+      attendancePresent:
+        example: 270
+        type: integer
+      totalCourses:
+        example: 3
+        type: integer
+      totalOfferings:
+        example: 4
+        type: integer
+      totalSessions:
+        example: 24
+        type: integer
+      totalStudents:
+        example: 38
+        type: integer
+    type: object
+  handlers.TeacherDashboardResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.TeacherDashboard'
+      message:
+        example: Request successful
         type: string
     type: object
   handlers.TeacherDataResponse:
@@ -545,6 +898,21 @@ definitions:
         example: 2
         type: integer
     type: object
+  handlers.UserSummary:
+    properties:
+      email:
+        example: grace@example.com
+        type: string
+      firstName:
+        example: Grace
+        type: string
+      id:
+        example: 12
+        type: integer
+      lastName:
+        example: Hopper
+        type: string
+    type: object
   models.Attendance:
     properties:
       class_session:
@@ -557,6 +925,8 @@ definitions:
         $ref: '#/definitions/gorm.DeletedAt'
       id:
         type: integer
+      present:
+        type: boolean
       updatedAt:
         type: string
       user:
@@ -721,8 +1091,6 @@ definitions:
         type: integer
       last_name:
         type: string
-      require_password_change:
-        type: boolean
       role:
         $ref: '#/definitions/models.Role'
       role_id:
@@ -948,6 +1316,114 @@ paths:
       summary: Restore a course
       tags:
       - courses
+  /admin/courses/{id}/students:
+    get:
+      description: Returns the students enrolled in any offering of the course. A
+        student enrolled in several batches appears once.
+      parameters:
+      - description: Course ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CourseStudentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List students of a course
+      tags:
+      - courses
+  /admin/courses/{id}/teachers:
+    get:
+      description: Returns the teachers who created the course, are assigned to it,
+        or instruct one of its offerings.
+      parameters:
+      - description: Course ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CourseTeachersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List teachers of a course
+      tags:
+      - courses
+  /admin/dashboard:
+    get:
+      description: Returns system-wide totals for teachers, students, courses, offerings,
+        enrollments and attendance.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AdminDashboardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Admin dashboard
+      tags:
+      - admin
   /admin/roles:
     get:
       description: Returns all roles, newest first.
@@ -1351,8 +1827,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Replaces the student's current enrollments with the supplied course
-        offering IDs. Send an empty array to clear all enrollments.
+      description: Adds the supplied course offering IDs to the student's enrollments.
+        Existing enrollments are kept. Use the DELETE endpoint to remove offerings.
       parameters:
       - description: Student ID
         in: path
@@ -1713,8 +2189,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Sets a new password for the authenticated user. newPassword must
-        match confirmPassword.
+      description: Sets a new password for the authenticated user. oldPassword must
+        match the current password and newPassword must match confirmPassword.
       parameters:
       - description: Password change payload
         in: body
@@ -1731,6 +2207,10 @@ paths:
             $ref: '#/definitions/handlers.MessageResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "404":
@@ -1878,6 +2358,597 @@ paths:
       summary: Register a user
       tags:
       - auth
+  /student/attendance:
+    get:
+      description: Returns the authenticated student's attendance for each offering
+        they are enrolled in, including per-session records and an attendance percentage
+        over the sessions that were marked.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MyAttendanceResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: My attendance
+      tags:
+      - student
+  /student/dashboard:
+    get:
+      description: Returns totals for the authenticated student's enrollments, upcoming
+        sessions and attendance.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.StudentDashboardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Student dashboard
+      tags:
+      - student
+  /student/enrollments:
+    get:
+      description: Returns the course offerings the authenticated student is enrolled
+        in, newest first.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List my enrollments
+      tags:
+      - student
+    post:
+      consumes:
+      - application/json
+      description: Adds the authenticated student to the given offerings. Existing
+        enrollments are kept.
+      parameters:
+      - description: Course offering IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AssignOfferingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingAssignmentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Enroll in course offerings
+      tags:
+      - student
+  /student/enrollments/{offeringId}:
+    delete:
+      description: Removes the authenticated student's enrollment in an offering.
+        The offering and any attendance already recorded are kept.
+      parameters:
+      - description: Course offering ID
+        in: path
+        name: offeringId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Drop a course offering
+      tags:
+      - student
+  /student/offerings:
+    get:
+      description: Returns every active course offering with its course and instructor,
+        newest first. Use the enrollments endpoint to enroll.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Browse course offerings
+      tags:
+      - student
+  /teacher/courses:
+    get:
+      description: Returns the courses the authenticated teacher created or is assigned
+        to, newest first.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CourseCollectionResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List my courses
+      tags:
+      - teacher
+    post:
+      consumes:
+      - application/json
+      description: Creates a course owned by the authenticated teacher.
+      parameters:
+      - description: Course payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateCourseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.CourseDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a course
+      tags:
+      - teacher
+  /teacher/courses/{id}:
+    get:
+      description: Returns a course the authenticated teacher created or is assigned
+        to.
+      parameters:
+      - description: Course ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CourseDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get one of my courses
+      tags:
+      - teacher
+  /teacher/courses/{id}/offerings:
+    post:
+      consumes:
+      - application/json
+      description: Schedules a batch of one of the teacher's courses. The authenticated
+        teacher becomes the instructor. Students enroll in offerings, not courses.
+      parameters:
+      - description: Course ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Offering payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOfferingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.OfferingDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a course offering
+      tags:
+      - teacher
+  /teacher/dashboard:
+    get:
+      description: Returns totals for the authenticated teacher's courses, offerings,
+        enrolled students, sessions and attendance.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TeacherDashboardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Teacher dashboard
+      tags:
+      - teacher
+  /teacher/offerings:
+    get:
+      description: Returns the course offerings the authenticated teacher instructs,
+        newest first.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List my offerings
+      tags:
+      - teacher
+  /teacher/offerings/{id}/sessions:
+    get:
+      description: Returns the class sessions of one of the teacher's offerings, in
+        chronological order.
+      parameters:
+      - description: Offering ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SessionListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List class sessions
+      tags:
+      - teacher
+    post:
+      consumes:
+      - application/json
+      description: Adds a class session to one of the teacher's offerings.
+      parameters:
+      - description: Offering ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Session payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.SessionDataResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a class session
+      tags:
+      - teacher
+  /teacher/offerings/{id}/students:
+    get:
+      description: Returns the students enrolled in an offering the authenticated
+        teacher instructs.
+      parameters:
+      - description: Offering ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingStudentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List students enrolled in my offering
+      tags:
+      - teacher
+  /teacher/sessions/{id}/attendance:
+    get:
+      description: Returns every student enrolled in the session's offering with their
+        attendance status. Present is null if not yet marked.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page (max 50)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AttendanceRosterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get attendance for a session
+      tags:
+      - teacher
+    put:
+      consumes:
+      - application/json
+      description: Sets present or absent for enrolled students in a session the teacher
+        instructs. Re-marking a student overwrites their status. Students not in the
+        list are left unchanged.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attendance records
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.MarkAttendanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AttendanceRosterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark attendance
+      tags:
+      - teacher
 schemes:
 - http
 securityDefinitions:
@@ -1897,5 +2968,11 @@ tags:
   name: courses
 - description: Teacher administration
   name: teachers
+- description: Teacher-scoped course, offering and enrollment views
+  name: teacher
+- description: Student-scoped course catalogue, enrollment and attendance
+  name: student
+- description: Admin overview and dashboard
+  name: admin
 - description: Student administration
   name: students

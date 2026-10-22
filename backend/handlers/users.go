@@ -239,6 +239,11 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	refreshToken := strings.Split(input.RefreshToken, "|")
 
+	if len(refreshToken) != 2 {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid refresh token"})
+		return
+	}
+
 	var activeSession models.SessionToken
 
 	result := h.DB.Where("refresh_token = ? AND refresh_token_expires_at > NOW()", refreshToken[1]).First(&activeSession)
@@ -281,13 +286,14 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // ChangePassword godoc
 // @Summary      Change password
-// @Description  Sets a new password for the authenticated user. newPassword must match confirmPassword.
+// @Description  Sets a new password for the authenticated user. oldPassword must match the current password and newPassword must match confirmPassword.
 // @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        request  body  ChangePasswordRequest  true  "Password change payload"
 // @Success      200  {object}  MessageResponse
 // @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     BearerAuth
@@ -311,6 +317,11 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DB.Where("email = ?", user.Email).First(&existingUser).Error; err != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "User not found"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(input.OldPassword)); err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Old password is incorrect"})
 		return
 	}
 
