@@ -1,5 +1,7 @@
 package main
 
+//go:generate go run github.com/swaggo/swag/cmd/swag init -g main.go -o docs --parseDependency
+
 import (
 	"fmt"
 	"log"
@@ -15,6 +17,28 @@ import (
 
 var DB *gorm.DB
 
+// @title           Course Attendance Management API
+// @version         1.0
+// @description     API for managing roles, courses, teachers, students, course offerings and attendance.
+// @host            localhost:8080
+// @BasePath        /api
+// @schemes         http
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter "Bearer" followed by a space and the access token returned by POST /api/login.
+
+// @tag.name auth
+// @tag.description Login, registration, token refresh and profile
+// @tag.name roles
+// @tag.description Role administration
+// @tag.name courses
+// @tag.description Course administration
+// @tag.name teachers
+// @tag.description Teacher administration
+// @tag.name students
+// @tag.description Student administration
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")

@@ -3,6 +3,11 @@ package main
 import (
 	"cms/handlers"
 	"net/http"
+	"os"
+
+	_ "cms/docs"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 var (
@@ -62,6 +67,20 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/admin/teachers/{id}/courses", chain(h.UnassignCourses, admin...))
 	mux.HandleFunc("DELETE /api/admin/teachers/{id}", chain(h.DeleteTeacher, admin...))
 	mux.HandleFunc("PATCH /api/admin/teachers/{id}/restore", chain(h.RestoreTeacher, admin...))
+
+	// student routes
+	mux.HandleFunc("GET /api/admin/students", chain(h.GetAllStudents, admin...))
+	mux.HandleFunc("POST /api/admin/students", chain(h.CreateStudent, admin...))
+	mux.HandleFunc("GET /api/admin/students/{id}", chain(h.GetStudent, admin...))
+	mux.HandleFunc("PATCH /api/admin/students/{id}", chain(h.UpdateStudent, admin...))
+	mux.HandleFunc("PATCH /api/admin/students/{id}/offerings", chain(h.AssignOfferings, admin...))
+	mux.HandleFunc("DELETE /api/admin/students/{id}/offerings", chain(h.UnassignOfferings, admin...))
+	mux.HandleFunc("DELETE /api/admin/students/{id}", chain(h.DeleteStudent, admin...))
+	mux.HandleFunc("PATCH /api/admin/students/{id}/restore", chain(h.RestoreStudent, admin...))
+
+	if os.Getenv("ENABLE_SWAGGER") == "true" {
+		mux.Handle("GET /swagger/", httpSwagger.WrapHandler)
+	}
 
 	return mux
 }
