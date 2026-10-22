@@ -21,7 +21,6 @@ type User struct {
 	RoleID                uint             `json:"role_id" gorm:"not null;index"`
 	Role                  Role             `json:"role" gorm:"foreignKey:RoleID"`
 	Password              string           `json:"-" gorm:"not null"`
-	RequirePasswordChange bool             `json:"require_password_change" gorm:"default:true"`
 	CourseCreated         []Course         `gorm:"foreignKey:CreatedBy"`
 	AssignedCourses       []Course         `gorm:"many2many:course_teachers"`
 	CourseOffered         []CourseOffering `gorm:"many2many:enrollments"`
@@ -65,10 +64,11 @@ type ClassSession struct {
 
 type Attendance struct {
 	gorm.Model
-	UserID         uint         `json:"user_id" gorm:"not null"`
+	UserID         uint         `json:"user_id" gorm:"not null;uniqueIndex:idx_attendance_user_session"`
 	User           User         `json:"user" gorm:"foreignKey:UserID"`
-	ClassSessionID uint         `json:"class_session_id" gorm:"not null"`
+	ClassSessionID uint         `json:"class_session_id" gorm:"not null;uniqueIndex:idx_attendance_user_session"`
 	ClassSession   ClassSession `json:"class_session" gorm:"foreignKey:ClassSessionID"`
+	Present        bool         `json:"present" gorm:"not null;default:false"`
 }
 
 type SessionToken struct {
