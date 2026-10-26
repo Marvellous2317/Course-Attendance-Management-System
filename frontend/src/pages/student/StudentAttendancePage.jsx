@@ -1,369 +1,466 @@
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
-  ShieldCheck,
-  Download,
-  Radio,
-  Clock,
-  AlertTriangle,
   CheckCircle2,
+  XCircle,
+  Calendar,
+  Clock,
+  BookOpen,
   Search,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
-  KeyRound,
+  GraduationCap,
+  Percent,
 } from 'lucide-react';
+
+// Live TanStack Query Hook & Context
+import { useStudentAttendance } from '../../shared/hooks/useStudent';
 import { useAdmin } from '../../context/AdminContext';
 
-
-export default function StudentAttendancePage ({
-  auditRecords,
-  onRequestAppeal,
-  onVerifyKey,
-}) {
+export default function StudentAttendancePage({ onNavigateTab }) {
   const { showToast } = useAdmin();
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const filteredRecords = auditRecords.filter((rec) => {
-    if (courseFilter !== 'all' && rec.courseCode !== courseFilter) return false;
-    if (statusFilter !== 'all' && rec.status !== statusFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        rec.courseCode.toLowerCase().includes(q) ||
-        rec.courseTitle.toLowerCase().includes(q) ||
-        (rec.room?.toLowerCase().includes(q) ?? false) ||
-        (rec.instructor?.toLowerCase().includes(q) ?? false)
-      );
-    }
-    return true;
-  });
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'PRESENT':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            PRESENT (ON TIME)
-          </span>
-        );
-      case 'LATE':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock className="w-3 h-3 text-secondary-500" />
-            LATE (GRACE PERIOD)
-          </span>
-        );
-      case 'EXCUSED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-            <ShieldCheck className="w-3 h-3 text-blue-600" />
-            EXCUSED ABSENCE
-          </span>
-        );
-      case 'UNEXCUSED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-            <AlertTriangle className="w-3 h-3 text-rose-600" />
-            UNEXCUSED ABSENCE
-          </span>
-        );
+  const perPage = 20;
+
+  // ---------------------------------------------------------------------------
+  // 1. Fetch Student Attendance Data
+  // ---------------------------------------------------------------------------
+  const {
+    data: attendanceResponse,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useStudentAttendance({ page, perPage });
+
+  const attendanceList = Array.isArray(attendanceResponse?.data)
+    ? attendanceResponse.data
+    : Array.isArray(attendanceResponse)
+      ? attendanceResponse
+      : [];
+
+  const meta = attendanceResponse?.meta || {
+    page,
+    perPage,
+    totalPages: 1,
+    totalRecords: attendanceList.length,
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
+    showToast?.('Attendance ledger updated.', 'success');
+  };
+
+  // ---------------------------------------------------------------------------
+  // 2. Computed Real Aggregates from Live API
+  // ---------------------------------------------------------------------------
+  const totalOfferings = attendanceList.length;
+
+  const totalAttended = useMemo(() => {
+    return attendanceList.reduce(
+      (acc, curr) => acc + (Number(curr.attended) || 0),
+      0
+    );
+  }, [attendanceList]);
+
+  const totalMarked = useMemo(() => {
+    return attendanceList.reduce(
+      (acc, curr) => acc + (Number(curr.marked) || 0),
+      0
+    );
+  }, [attendanceList]);
+
+  const averagePercentage = useMemo(() => {
+    const validPercentages = attendanceList
+      .map((c) => Number(c.percentage))
+      .filter((p) => !isNaN(p) && p !== null);
+
+    if (validPercentages.length === 0) return null;
+    return (
+      validPercentages.reduce((a, b) => a + b, 0) / validPercentages.length
+    ).toFixed(1);
+  }, [attendanceList]);
+
+  // List of unique course titles for the filter dropdown
+  const uniqueCourseTitles = useMemo(() => {
+    return Array.from(new Set(attendanceList.map((c) => c.courseTitle).filter(Boolean)));
+  }, [attendanceList]);
+
+  // ---------------------------------------------------------------------------
+  // 3. Filter Offerings & Their Records
+  // ---------------------------------------------------------------------------
+  const filteredOfferings = useMemo(() => {
+    return attendanceList
+      .filter((offering) => {
+        if (courseFilter !== 'all' && offering.courseTitle !== courseFilter) {
+          return false;
+        }
+        return true;
+      })
+      .map((offering) => {
+        const filteredRecords = (offering.records || []).filter((rec) => {
+          // Status Filter
+          if (statusFilter === 'present' && !rec.present) return false;
+          if (statusFilter === 'absent' && rec.present) return false;
+
+          // Search Query
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            const topic = (rec.topic || '').toLowerCase();
+            const course = (offering.courseTitle || '').toLowerCase();
+            const batch = (offering.batchCode || '').toLowerCase();
+            const time = (rec.startTime || '').toLowerCase();
+            return (
+              topic.includes(q) ||
+              course.includes(q) ||
+              batch.includes(q) ||
+              time.includes(q)
+            );
+          }
+          return true;
+        });
+
+        return {
+          ...offering,
+          filteredRecords,
+        };
+      })
+      .filter((offering) => {
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const course = (offering.courseTitle || '').toLowerCase();
+          const batch = (offering.batchCode || '').toLowerCase();
+          if (course.includes(q) || batch.includes(q)) return true;
+          return offering.filteredRecords.length > 0;
+        }
+        if (statusFilter !== 'all') {
+          return offering.filteredRecords.length > 0;
+        }
+        return true;
+      });
+  }, [attendanceList, courseFilter, statusFilter, searchQuery]);
+
+  // Helper date formatter
+  const formatSessionTime = (timeStr) => {
+    if (!timeStr) return 'Scheduled';
+    try {
+      const d = new Date(timeStr);
+      if (isNaN(d.getTime())) return timeStr;
+      return d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return timeStr;
     }
   };
+
   return (
     <div className="space-y-6 pb-16">
-      {/* 1. Header with Badges & Action Buttons */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* 1. Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700">
-              SEMESTER TERM 2025-A
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-              • ACADEMIC EXCELLENCE STATUS
-            </span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
-            Biometric & RFID Attendance Ledger
+           <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
+            My Attendance
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time cryptographically signed turnstile telemetry. Every
-            session is logged with millisecond timestamps and hardware ingress
-            IDs.
+            Review your session records, attendance rates, and progress across all enrolled courses.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
-          <button
-            type="button"
-            onClick={() =>
-              showToast(
-                'Compiling official signed attendance ledger PDF...',
-                'success',
-              )
-            }
-            className="px-4 py-2.5 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-2 cursor-pointer transition-colors shadow-2xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download PDF Ledger</span>
-          </button>
-
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onRequestAppeal}
-            className="px-4 py-2.5 rounded-2xl bg-secondary-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md shadow-secondary-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <span>+ Request Absence Appeal</span>
-          </motion.button>
-        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isFetching}
+          className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-secondary-500' : ''}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
-      {/* 2. Top 4 Telemetry Metric Cards (Matching Screen 1) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Overall Attendance */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              OVERALL ATTENDANCE
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-950 mt-2">
-            96.4%{' '}
-            <span className="text-xs font-bold text-emerald-600">↑+1.2%</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            159 / 165 Sessions logged • Top 5% Cohort
-          </p>
-        </div>
-
-        {/* Missed Sessions */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              MISSED UNEXCUSED
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-950 mt-2">
-            2{' '}
-            <span className="text-xs font-medium text-slate-400">Sessions</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Threshold: ≤6 sessions before academic review
-          </p>
-        </div>
-
-        {/* Late / Grace */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              LATE / GRACE PERIOD
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-secondary-500 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-950 mt-2">
-            4{' '}
-            <span className="text-xs font-medium text-slate-400">Sessions</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Avg delay: 4.2 mins (Within 10m grace limit)
-          </p>
-        </div>
-
-        {/* RFID Credential */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              VERIFIED CREDENTIAL
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-primary-900 text-secondary-500 flex items-center justify-center">
-              <Radio className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-lg font-black text-slate-950 font-mono mt-2">
-            DESFire EV3
-          </div>
-          <p className="text-[11px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Serial #8841-VH • Active
-          </p>
-        </div>
-      </div>
-
-      {/* 3. Filter Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+      
+      {/* 3. Search & Filters */}
+      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        {/* Search */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by course code, room..."
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-secondary-500"
+            placeholder="Search by topic, course title, or batch..."
+            className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-secondary-500 transition-colors"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Course filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Course Filter */}
           <div className="relative">
             <select
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="appearance-none bg-slate-50 border border-slate-200 px-3 py-1.5 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
+              className="appearance-none bg-slate-50 border border-slate-200/80 px-3 py-2 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
             >
-              <option value="all">All Registered Courses</option>
-              <option value="CS-401">CS-401</option>
-              <option value="SWE-210">SWE-210</option>
-              <option value="AI-490">AI-490</option>
-              <option value="MATH-240">MATH-240</option>
-              <option value="ETH-310">ETH-310</option>
+              <option value="all">All Enrolled Courses</option>
+              {uniqueCourseTitles.map((title) => (
+                <option key={title} value={title}>
+                  {title}
+                </option>
+              ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
 
-          {/* Status filter */}
+          {/* Status Filter */}
           <div className="relative">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-slate-50 border border-slate-200 px-3 py-1.5 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
+              className="appearance-none bg-slate-50 border border-slate-200/80 px-3 py-2 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
             >
-              <option value="all">All Ingress Statuses</option>
-              <option value="PRESENT">Present (On Time)</option>
-              <option value="LATE">Late (Grace)</option>
-              <option value="EXCUSED">Excused</option>
-              <option value="UNEXCUSED">Unexcused</option>
+              <option value="all">All Attendance Records</option>
+              <option value="present">Present Only</option>
+              <option value="absent">Absent Only</option>
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
+
+          {(searchQuery || courseFilter !== 'all' || statusFilter !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setCourseFilter('all');
+                setStatusFilter('all');
+              }}
+              className="text-xs text-slate-500 hover:text-slate-900 font-semibold px-2 cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 4. Table of Audit Records */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3.5 px-6">DATE & TIMESTAMP</th>
-                <th className="py-3.5 px-6">COURSE & FACULTY</th>
-                <th className="py-3.5 px-6">INGRESS METHOD</th>
-                <th className="py-3.5 px-6">ROOM / VENUE</th>
-                <th className="py-3.5 px-6">VERIFIED STATUS</th>
-                <th className="py-3.5 px-6 text-right">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredRecords.map((record) => (
-                <motion.tr
-                  key={record.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  whileHover={{ backgroundColor: 'rgba(248, 250, 252, 0.8)' }}
-                  className="transition-colors"
-                >
-                  {/* Date & Time */}
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    <strong className="block text-slate-900 font-bold">
-                      {record.date}
-                    </strong>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      {record.timestamp} • {record.sessionNumber}
-                    </span>
-                  </td>
+      {/* 4. Loading State */}
+      {isLoading && (
+        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-secondary-500 mx-auto" />
+          <p className="text-sm font-bold text-slate-700">Loading attendance records...</p>
+        </div>
+      )}
 
-                  {/* Course & Faculty */}
-                  <td className="py-4 px-6">
+      {/* 5. Error State */}
+      {!isLoading && isError && (
+        <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-xs space-y-3">
+          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+          <p className="text-sm font-bold text-slate-900">
+            {error?.response?.data?.message || error?.message || 'Failed to load attendance.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* 6. Empty State */}
+      {!isLoading && !isError && filteredOfferings.length === 0 && (
+        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-black text-slate-950">
+            {searchQuery || courseFilter !== 'all' || statusFilter !== 'all'
+              ? 'No matching attendance records'
+              : 'No Attendance Records Available'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {searchQuery || courseFilter !== 'all' || statusFilter !== 'all'
+              ? 'Try modifying your search query or reset your filters.'
+              : 'You do not have any recorded attendance sessions in your enrolled courses yet.'}
+          </p>
+        </div>
+      )}
+
+      {/* 7. Per-Offering Attendance Cards & Session Records */}
+      {!isLoading && !isError && filteredOfferings.length > 0 && (
+        <div className="space-y-6">
+          {filteredOfferings.map((offering) => {
+            const percentage = Number(offering.percentage || 0);
+            const isGoodStanding = percentage >= 85;
+
+            return (
+              <motion.div
+                key={offering.offeringId}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden"
+              >
+                {/* Offering Header Strip */}
+                <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded bg-primary-900 text-secondary-500 font-mono font-bold text-[10px]">
-                        {record.courseCode}
-                      </span>
-                      <span className="font-bold text-slate-900 truncate max-w-[180px]">
-                        {record.courseTitle}
-                      </span>
+                      <h3 className="font-black text-lg text-slate-950 tracking-tight">
+                        {offering.courseTitle || 'Untitled Course'}
+                      </h3>
+                      {offering.batchCode && (
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-mono font-bold text-xs border border-slate-200">
+                          {offering.batchCode}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[11px] text-slate-400 block mt-0.5">
-                      {record.instructor}
-                    </span>
-                  </td>
+                    <p className="text-xs text-slate-500">
+                      Offering ID: #{offering.offeringId} • {offering.attended} of {offering.marked} sessions attended
+                    </p>
+                  </div>
 
-                  {/* Ingress Method */}
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5 font-mono text-slate-700 font-semibold">
-                      <Radio className="w-3.5 h-3.5 text-secondary-500" />
-                      <span>{record.ingressDevice}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">
-                      NFC Hardware Handshake
-                    </span>
-                  </td>
-
-                  {/* Room / Venue */}
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    <div className="font-medium text-slate-800">
-                      {record.room}
-                    </div>
-                    <span className="text-[10px] text-slate-400">
-                      Alan Turing Complex
-                    </span>
-                  </td>
-
-                  {/* Status */}
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    {getStatusBadge(record.status)}
-                  </td>
-
-                  {/* Action */}
-                  <td className="py-4 px-6 whitespace-nowrap text-right">
-                    {record.status === 'UNEXCUSED' ? (
-                      <button
-                        type="button"
-                        onClick={onRequestAppeal}
-                        className="px-3 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-[11px] cursor-pointer"
+                  <div className="flex items-center gap-4 shrink-0">
+                    {/* Rate Percentage Badge */}
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-slate-950">
+                        {percentage.toFixed(1)}%
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${isGoodStanding
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}
                       >
-                        Appeal
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onVerifyKey(record)}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium text-[11px] inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <KeyRound className="w-3 h-3 text-slate-400" />
-                        <span>Audit Key</span>
-                      </button>
-                    )}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+                        {isGoodStanding ? 'Good Standing' : 'Below 85% Target'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Bar with 85% Benchmark Line */}
+                <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium mb-1.5">
+                    <span>Attendance Rate</span>
+                    <span>Institutional Benchmark: 85.0%</span>
+                  </div>
+                  <div className="relative w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${isGoodStanding ? 'bg-slate-900' : 'bg-amber-600'
+                        }`}
+                      style={{ width: `${Math.min(100, percentage)}%` }}
+                    />
+                    {/* 85% target marker */}
+                    <div
+                      className="absolute top-0 bottom-0 left-[85%] w-0.5 bg-amber-400 z-10"
+                      title="85% Requirement"
+                    />
+                  </div>
+                </div>
+
+                {/* Session Records Table */}
+                <div className="overflow-x-auto">
+                  {offering.filteredRecords?.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No session records match the active filter for this course.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                          <th className="py-3 px-6">SESSION ID</th>
+                          <th className="py-3 px-6">TOPIC</th>
+                          <th className="py-3 px-6">DATE & TIME</th>
+                          <th className="py-3 px-6 text-right">STATUS</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {offering.filteredRecords.map((record) => (
+                          <tr
+                            key={record.sessionId}
+                            className="hover:bg-slate-50/80 transition-colors"
+                          >
+                            {/* Session ID */}
+                            <td className="py-3.5 px-6 font-mono font-semibold text-slate-600 whitespace-nowrap">
+                              #{record.sessionId}
+                            </td>
+
+                            {/* Topic */}
+                            <td className="py-3.5 px-6 font-bold text-slate-900">
+                              {record.topic || 'General Session'}
+                            </td>
+
+                            {/* Date / Time */}
+                            <td className="py-3.5 px-6 text-slate-500 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{formatSessionTime(record.startTime)}</span>
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3.5 px-6 text-right whitespace-nowrap">
+                              {record.present ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Present</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Absent</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
+      )}
 
-        {/* Footer info note */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>
-              Cryptographic Proof: SHA-256 Ledger signed by Institutional
-              Academic Audit Node #10
-            </span>
-          </div>
-
-          <span className="font-mono text-[11px] text-slate-400">
-            Current Hash: 0x7a8f9c2d...41b0
+      {/* 8. Pagination Controls */}
+      {!isLoading && !isError && meta.totalPages > 1 && (
+        <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between text-xs text-slate-600">
+          <span>
+            Page <strong className="text-slate-900">{meta.page}</strong> of{' '}
+            <strong className="text-slate-900">{meta.totalPages}</strong> ({meta.totalRecords} total offerings)
           </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={meta.page <= 1}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={meta.page >= meta.totalPages}
+              onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
-};
+}

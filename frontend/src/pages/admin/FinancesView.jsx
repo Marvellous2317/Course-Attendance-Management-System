@@ -49,7 +49,26 @@ export default function FinancesView () {
   }, [invoices, searchQuery, selectedStatus]);
   return (
     <div className="space-y-6 pb-12">
-      {/* Financial Health Metric Cards */}
+      {/* 1. Header & Title with Orange Category Tag */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-900 border border-amber-200/80 mb-2">
+            <span className="w-2 h-2 rounded-full bg-secondary-500 animate-pulse" />
+            <span>INSTITUTIONAL BURSARY</span>
+            <span className="text-amber-400">•</span>
+            <span>FINANCIAL LEDGER</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+            Tuition Ledger & Accounts
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Student fee tracking, payment status reconciliation, and financial audit logs.
+          </p>
+        </div>
+      </div>
+
+      {/* 2. Financial Health Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         <StatCard
           title="Total Invoiced"
@@ -85,11 +104,11 @@ export default function FinancesView () {
         />
       </div>
 
-      {/* Filter and Action Bar */}
+      {/* 3. Filter and Action Bar */}
       <ScrollReveal delay={0.2}>
         <Card className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 Status:
@@ -99,7 +118,11 @@ export default function FinancesView () {
                   key={status}
                   type="button"
                   onClick={() => setSelectedStatus(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${selectedStatus === status ? "bg-indigo-600 text-white shadow-xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    selectedStatus === status
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
                 >
                   {status}
                 </button>
@@ -107,9 +130,9 @@ export default function FinancesView () {
             </div>
 
             <Button
-              variant="outline"
+              variant="accent"
               size="sm"
-              iconLeft={<Download className="w-4 h-4" />}
+              iconLeft={<Download className="w-4 h-4 text-slate-950" />}
               onClick={() =>
                 showToast("Generated tuition summary PDF", "success")
               }

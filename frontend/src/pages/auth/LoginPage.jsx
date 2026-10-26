@@ -40,10 +40,16 @@ export default function LoginPage () {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
     try {
       await login({ email, password });
     } catch (err) {
       console.error("Login failed:", err);
+      setErrorMessage(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Invalid credentials. Please verify your email and password."
+      );
     }
   };
 

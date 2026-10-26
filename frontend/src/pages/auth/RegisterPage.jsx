@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
   Mail,
@@ -8,10 +9,6 @@ import {
   ArrowRight,
   ArrowLeft,
   User,
-  Shield,
-  Building2,
-  Sparkles,
-  IdCard,
 } from "lucide-react";
 import { useAdmin } from "../../context/AdminContext";
 import Images from "../../../public/images/images";
@@ -19,23 +16,38 @@ import { register as registerApi } from "../../shared/api/auth";
 
 const currentYear = new Date().getFullYear();
 
-export default function RegisterPage () {
+export default function RegisterPage() {
   const navigate = useNavigate();
-  const { setAppView, showToast, login } = useAdmin();
-  const [fullName, setFullName] = useState("");
+  const { showToast } = useAdmin();
+
+  // Form states
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("student");
-  const [department, setDepartment] = useState(
-    "Department of Computer Science & AI",
-  );
-  const [studentOrEmployeeId, setStudentOrEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Mutation to consume registration API
+  const registerMutation = useMutation({
+    mutationFn: registerApi,
+    onSuccess: () => {
+      showToast(`Account successfully registered for ${firstName}! Please sign in.`, "success");
+      navigate("/login");
+    },
+    onError: (err) => {
+      console.error(err);
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Registration failed. Please try again.";
+      setErrorMessage(errorMsg);
+      showToast(errorMsg, "error");
+    },
+  });
 
   const getPasswordStrength = () => {
     if (!password) return { label: "", score: 0, color: "bg-slate-200" };
@@ -53,31 +65,7 @@ export default function RegisterPage () {
 
   const passwordStrength = getPasswordStrength();
 
-  const handleFillDemo = (demoRole) => {
-    if (demoRole === "student") {
-      setFullName("Alex Morgan");
-      setEmail("a.morgan@student.othello.edu");
-      setRole("student");
-      setDepartment("Department of Computer Science & AI");
-      setStudentOrEmployeeId("STU-2026-9042");
-      setPassword("OthelloStudent2026!");
-      setConfirmPassword("OthelloStudent2026!");
-      setAgreeTerms(true);
-      showToast("Pre-filled demo Student registration profile", "info");
-    } else {
-      setFullName("Dr. Robert Chen");
-      setEmail("r.chen@othello.edu");
-      setRole("teacher");
-      setDepartment("School of Computing & Cybernetics");
-      setStudentOrEmployeeId("FAC-2026-118");
-      setPassword("FacultyOthello2026!");
-      setConfirmPassword("FacultyOthello2026!");
-      setAgreeTerms(true);
-      showToast("Pre-filled demo Faculty registration profile", "info");
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMessage("");
 
@@ -87,43 +75,23 @@ export default function RegisterPage () {
     }
 
     if (!agreeTerms) {
-      setErrorMessage(
-        "Please accept the Institutional Code of Conduct to register.",
-      );
+      setErrorMessage("Please accept the Institutional Code of Conduct to register.");
       return;
     }
 
-    setIsSubmitting(true);
+    // Payload formatted to match backend requirements
+    const payload = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      password,
+      roleId: 3, // Default role ID (e.g., student)
+    };
 
-    try {
-      const nameParts = fullName.trim().split(" ");
-      const firstName = nameParts[0] || fullName;
-      const lastName = nameParts.slice(1).join(" ") || "User";
-      const roleId = role === "admin" ? 1 : role === "teacher" ? 2 : 3;
-
-      const payload = {
-        firstName,
-        lastName,
-        email,
-        roleId,
-        password,
-      };
-
-      await registerApi(payload);
-
-      showToast(`Account successfully registered for ${fullName}! Please sign in.`, "success");
-      setIsSubmitting(false);
-      navigate("/login");
-    } catch (err) {
-      console.error(err);
-      const errorMsg = err.response?.data?.error || "Registration completed. Please sign in with your credentials.";
-      showToast(errorMsg, err.response?.data?.error ? "error" : "success");
-      setIsSubmitting(false);
-      if (!err.response?.data?.error) {
-        navigate("/login");
-      }
-    }
+    registerMutation.mutate(payload);
   };
+
+  const isSubmitting = registerMutation.isPending || registerMutation.isLoading;
 
   return (
     <div className="min-h-screen bg-primary-100 text-slate-900 flex flex-col justify-between p-3 sm:p-6 lg:p-8 relative selection:bg-secondary-500/20 selection:text-slate-950 font-sans overflow-x-hidden">
@@ -185,8 +153,7 @@ export default function RegisterPage () {
                   Create Account
                 </h2>
                 <p className="text-sm text-slate-500 mt-1.5">
-                  Enter your institutional details to register your portal
-                  access.
+                  Enter your institutional details to register your portal access.
                 </p>
               </div>
 
@@ -198,45 +165,62 @@ export default function RegisterPage () {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="mt-5 space-y-3.5">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Dr. Eleanor Vance or Julian Vance"
-                      className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-10"
-                    />
-                    <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Email & Role Grid */}
-                <div className="grid grid-cols-1 gap-3">
+                {/* 1. First Name & Last Name in a Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Institutional Email
+                      First Name
                     </label>
                     <div className="relative">
                       <input
-                        type="email"
+                        type="text"
                         required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="username@othello.edu"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Ada"
                         className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-10"
                       />
-                      <Mail className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Last Name
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Lovelace"
+                        className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-10"
+                      />
+                      <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 </div>
 
-                {/* Password & Confirm Password */}
+                {/* 2. Email Below */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Institutional Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="ada@example.com"
+                      className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition-all pr-10"
+                    />
+                    <Mail className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* 3. Password & Confirm Password Below */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -256,11 +240,7 @@ export default function RegisterPage () {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -284,16 +264,10 @@ export default function RegisterPage () {
                       />
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
-                        {showConfirmPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -344,7 +318,7 @@ export default function RegisterPage () {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full mt-3 py-3.5 px-4 rounded-xl bg-secondary-500 hover:bg-secondary-600 text-slate-950 font-extrabold text-sm shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full mt-3 py-3.5 px-4 rounded-xl bg-secondary-500 hover:bg-secondary-600 text-slate-950 font-extrabold text-sm shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <span>
                     {isSubmitting
@@ -371,7 +345,7 @@ export default function RegisterPage () {
             </div>
           </div>
 
-          {/* Right Column: Hero Image with NO text under it */}
+          {/* Right Column: Hero Image */}
           <div className="hidden lg:block relative w-full h-full min-h-[500px] overflow-hidden bg-slate-900">
             <img
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1000&auto=format&fit=crop&q=80"
@@ -392,4 +366,4 @@ export default function RegisterPage () {
       </footer>
     </div>
   );
-};
+}

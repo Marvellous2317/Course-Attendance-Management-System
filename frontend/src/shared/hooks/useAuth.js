@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { login as loginApi, register as registerApi, changePassword as changePasswordApi, getUserProfile } from "../api/auth";
+import { getUserRole } from "../guards/RoleRedirect";
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -18,34 +19,51 @@ export const useAuth = () => {
 
     const loginMutation = useMutation({
         mutationFn: loginApi,
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
             const token = response?.data?.accessToken || response?.accessToken || "";
             const refreshToken =
                 response?.data?.refreshToken || response?.refreshToken || null;
             const apiUser = response?.data?.user || {};
 
-            let role = apiUser.role?.toLowerCase();
-            if (!role) {
-                if (apiUser.email?.includes("teacher")) role = "teacher";
-                else if (apiUser.email?.includes("student")) role = "student";
-                else role = "admin";
+            // 1. Fetch full user profile using the token BEFORE setting auth state
+            let profileUser = apiUser;
+            try {
+                const profileRes = await getUserProfile({
+                    Authorization: `Bearer ${token}`,
+                });
+                const profileData = profileRes?.data || profileRes;
+                if (profileData && typeof profileData === 'object') {
+                    profileUser = { ...apiUser, ...profileData };
+                }
+            } catch (err) {
+                console.warn("Could not fetch user profile immediately after login:", err);
             }
 
-            const userData = { ...apiUser, role };
+            // 2. Resolve normalized role (handles "instructor" -> "teacher")
+            const role =
+                getUserRole(profileUser) ||
+                (profileUser.email?.includes("teacher") || profileUser.email?.includes("instructor")
+                    ? "teacher"
+                    : profileUser.email?.includes("student")
+                    ? "student"
+                    : "admin");
 
+            const userData = { ...profileUser, role };
+
+            // 3. Set auth ONCE with complete user data and role
             setAuth(userData, token, refreshToken);
 
             // Force a password change first if the backend says so
-            // (adjust the route to match yours)
             if (userData.require_password_change) {
-                navigate("/change-password");
+                navigate("/change-password", { replace: true });
                 return;
             }
 
-            if (role === "admin") navigate("/admin");
-            else if (role === "teacher") navigate("/teacher");
-            else if (role === "student") navigate("/student");
-            else navigate("/dashboard");
+            // 4. Navigate directly to the corresponding portal
+            if (role === "admin") navigate("/admin", { replace: true });
+            else if (role === "teacher" || role === "instructor") navigate("/teacher", { replace: true });
+            else if (role === "student") navigate("/student", { replace: true });
+            else navigate("/dashboard", { replace: true });
         },
     });
 
@@ -73,11 +91,7 @@ export const useAuth = () => {
             const profile = await getUserProfile();
             const user = profile?.data || profile;
             const current = useAuthStore.getState();
-            current.setAuth({
-                token: current.token,
-                user,
-                requiresPasswordChange: current.requiresPasswordChange,
-            });
+            current.setUser(user);
             return user;
         } catch (err) {
             // Token likely invalid/expired

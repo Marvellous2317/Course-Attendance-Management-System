@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -6,10 +7,28 @@ import {
   CalendarCheck,
   Settings,
   LogOut,
+  User,
   ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { OthelloLogo } from '../../shared/components/OthelloLogo';
 import { useAdmin } from '../../context/AdminContext';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import { getUserProfile } from '../../shared/api/auth';
+
+// Helper to format role names ({ id: 3, name: "student" } -> "Student")
+const formatRole = (r) => {
+  const raw = typeof r === 'object' ? r?.name : r;
+  if (!raw) return 'Student';
+  if (typeof raw === 'string') {
+    return raw.toLowerCase() === 'admin'
+      ? 'Super Admin'
+      : raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return 'Student';
+};
 
 export default function StudentSidebar({
   activeTab,
@@ -17,12 +36,91 @@ export default function StudentSidebar({
   mobileOpen,
   setMobileOpen,
 }) {
-  const { logout, showToast, sidebarCollapsed, toggleSidebar } = useAdmin();
+  const adminCtx = useAdmin() || {};
+  const { logout, showToast, sidebarCollapsed, toggleSidebar, currentUser } = adminCtx;
+  const isMobileOpen = mobileOpen !== undefined ? mobileOpen : adminCtx.mobileMenuOpen;
+  const setIsMobileOpen = setMobileOpen || adminCtx.setMobileMenuOpen;
+
+  // ---------------------------------------------------------------------------
+  // Profile Data & API Consumption
+  // ---------------------------------------------------------------------------
+  const { user, setUser } = useAuthStore();
+
+  const { data: profileResponse } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: getUserProfile,
+    staleTime: 1000 * 60 * 5, // keep fresh for 5 minutes
+  });
+
+  // Sync latest server profile into Zustand store
+  useEffect(() => {
+    const profile = profileResponse?.data || profileResponse;
+    if (profile && typeof profile === 'object') {
+      setUser({
+        ...user,
+        ...profile,
+        role: profile.role || user?.role,
+      });
+    }
+  }, [profileResponse]);
+
+  // Resolve current active profile values
+  const currentProfile = profileResponse?.data || profileResponse || user || currentUser;
+  const firstName =
+    currentProfile?.firstName ||
+    (currentProfile?.name ? currentProfile.name.split(' ')[0] : '');
+  const lastName =
+    currentProfile?.lastName ||
+    (currentProfile?.name
+      ? currentProfile.name.split(' ').slice(1).join(' ')
+      : '');
+  const fullName =
+    `${firstName} ${lastName}`.trim() || currentProfile?.name || 'Student User';
+  const displayRole = formatRole(currentProfile?.role);
+  const initial = firstName
+    ? firstName.charAt(0).toUpperCase()
+    : fullName
+    ? fullName.charAt(0).toUpperCase()
+    : '';
+
+  // Close mobile drawer on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isMobileOpen) {
+        setIsMobileOpen?.(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOpen, setIsMobileOpen]);
+
+  // Close mobile drawer if resized to desktop breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && isMobileOpen) {
+        setIsMobileOpen?.(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileOpen, setIsMobileOpen]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileOpen]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'courses', label: 'Your Courses', icon: BookOpen },
-    { id: 'enrollment', label: 'Enrollment', icon: UserPlus, badge: 'Open' },
+    { id: 'enrollment', label: 'Enrollment', icon: UserPlus, },
     { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -33,7 +131,27 @@ export default function StudentSidebar({
     // look like they "grow out of" the page.
     <div className="flex flex-col h-full select-none bg-primary-900 [--page-bg:var(--color-slate-50)]">
       {/* Brand Header */}
-      <div className="h-18 flex items-center px-4 shrink-0 justify-between">
+      <div className="h-18 flex items-center px-4 shrink-0 justify-between relative">
+        {/* Mobile Header Branding */}
+        <div className="flex items-center gap-2.5 lg:hidden">
+          <span className="font-semibold text-white text-sm tracking-tight">
+            Student Portal
+          </span>
+        </div>
+
+        {/* Mobile Chevron Close Button (<<) */}
+        <div className="lg:hidden ml-auto">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsMobileOpen?.(false)}
+            className="p-1.5 rounded-lg text-primary-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center group"
+            title="Close sidebar"
+            aria-label="Close navigation sidebar"
+          >
+            <ChevronsLeft className="w-5 h-5 text-primary-200 group-hover:text-white transition-colors" />
+          </motion.button>
+        </div>
 
         {/* Desktop Collapse Toggle */}
         <div
@@ -68,7 +186,7 @@ export default function StudentSidebar({
               key={item.id}
               onClick={() => {
                 setActiveTab(item.id);
-                setMobileOpen(false);
+                setIsMobileOpen?.(false);
               }}
               // `isolate` keeps the indicator's -z-10 inside this button,
               // so it can't slip behind the sidebar's background.
@@ -135,31 +253,38 @@ export default function StudentSidebar({
         })}
       </div>
 
-      {/* Footer Profile Card */}
+      {/* Footer / User Profile & Logout */}
       <div className="p-3 border-t border-white/10 shrink-0 space-y-2">
         <div
-          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${sidebarCollapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${
+            sidebarCollapsed ? 'justify-center' : ''
+          }`}
         >
+          {/* Settings-style Initials Avatar with Online Badge */}
           <div className="relative shrink-0">
-            <img
-              src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=256"
-              alt="Julian Vance-Hayes"
-              className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/20"
-            />
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-indigo-700 font-bold text-xs ring-1 ring-white/20 shrink-0 shadow-xs">
+              {initial ? (
+                initial
+              ) : (
+                <User className="w-4 h-4 text-indigo-600" />
+              )}
+            </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-purple-950" />
           </div>
 
+          {/* Dynamic Full Name & Role */}
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-white truncate">
-                Julian Vance-Hayes
+              <span className="text-xs font-bold text-white truncate" title={fullName}>
+                {fullName}
               </span>
-              <span className="text-[10px] text-purple-300 truncate">
-                j.vancehayes@othello.edu
+              <span className="text-[10px] text-purple-300 truncate" title={displayRole}>
+                {displayRole}
               </span>
             </div>
           )}
 
+          {/* Logout Button */}
           {!sidebarCollapsed && (
             <button
               type="button"
@@ -171,13 +296,32 @@ export default function StudentSidebar({
             </button>
           )}
         </div>
-
       </div>
     </div>
   );
 
   return (
     <>
+      {/* Mobile Floating Drawer Trigger Button */}
+      <AnimatePresence>
+        {!isMobileOpen && (
+          <motion.button
+            key="mobile-sidebar-toggle-btn"
+            initial={{ opacity: 0, scale: 0.85, x: -10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.85, x: -10 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMobileOpen?.(true)}
+            className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-slate-200/90 text-primary-900 hover:text-primary-800 hover:bg-slate-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center cursor-pointer group"
+            title="Open navigation"
+            aria-label="Open navigation sidebar"
+          >
+            <ChevronsRight className="w-5 h-5 text-primary-900 group-hover:text-primary-800 transition-transform group-hover:translate-x-0.5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Animated Sidebar
           No border-r / shadow: any line on the right edge would cut the tab off from the page. */}
       <motion.aside
@@ -190,14 +334,14 @@ export default function StudentSidebar({
 
       {/* Mobile Drawer */}
       <AnimatePresence>
-        {mobileOpen && (
+        {isMobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden flex">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setIsMobileOpen?.(false)}
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             />
 

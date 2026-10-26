@@ -5,18 +5,27 @@ import {
   GraduationCap,
   Users,
   BookOpen,
-  CalendarDays,
-  CreditCard,
-  BellRing,
+  ShieldCheck,
   Settings,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
   LogOut,
-  Globe,
+  User,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAdmin } from '../../context/AdminContext';
-import Images from '../../../public/images/images';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import { getUserProfile } from '../../shared/api/auth';
+
+// Helper to format role names ({ id: 1, name: "admin" } -> "Super Admin")
+const formatRole = (r) => {
+  const raw = typeof r === 'object' ? r?.name : r;
+  if (!raw) return 'Super Admin';
+  return raw.toLowerCase() === 'admin'
+    ? 'Super Admin'
+    : raw.charAt(0).toUpperCase() + raw.slice(1);
+};
 
 export const Sidebar = () => {
   const {
@@ -26,12 +35,48 @@ export const Sidebar = () => {
     toggleSidebar,
     mobileMenuOpen,
     setMobileMenuOpen,
-    invoices,
-    announcements,
+    invoices = [],
+    announcements = [],
     logout,
-    setAppView,
-    currentUser,
   } = useAdmin();
+
+  // ---------------------------------------------------------------------------
+  // Profile Data & API Consumption
+  // ---------------------------------------------------------------------------
+  const { user, setUser } = useAuthStore();
+
+  const { data: profileResponse } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: getUserProfile,
+    staleTime: 1000 * 60 * 5, // keep fresh for 5 minutes
+  });
+
+  // Sync latest server profile into Zustand store
+  useEffect(() => {
+    const profile = profileResponse?.data || profileResponse;
+    if (profile && typeof profile === 'object') {
+      setUser({
+        ...user,
+        ...profile,
+        role: profile.role || user?.role,
+      });
+    }
+  }, [profileResponse]);
+
+  // Resolve current active profile values
+  const currentProfile = profileResponse?.data || profileResponse || user;
+  const firstName =
+    currentProfile?.firstName ||
+    (currentProfile?.name ? currentProfile.name.split(' ')[0] : '');
+  const lastName =
+    currentProfile?.lastName ||
+    (currentProfile?.name
+      ? currentProfile.name.split(' ').slice(1).join(' ')
+      : '');
+  const fullName =
+    `${firstName} ${lastName}`.trim() || currentProfile?.name || 'Admin User';
+  const displayRole = formatRole(currentProfile?.role);
+  const initial = firstName ? firstName.charAt(0).toUpperCase() : '';
 
   // Close mobile drawer on Escape key press
   useEffect(() => {
@@ -67,34 +112,36 @@ export const Sidebar = () => {
     };
   }, [mobileMenuOpen]);
 
-  const pendingInvoicesCount = invoices.filter(
-    (i) => i.status === 'Pending' || i.status === 'Overdue',
-  ).length;
-  const urgentAnnouncementsCount = announcements.filter(
-    (a) => a.priority === 'Urgent',
-  ).length;
-
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Students', icon: GraduationCap },
     { id: 'teachers', label: 'Teachers', icon: Users },
     { id: 'courses', label: 'Courses', icon: BookOpen },
+    // { id: 'roles', label: 'Roles', icon: ShieldCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const navContent = (
-    // --page-bg MUST match the background of your main content area.
-    // The active tab and its curves are painted with this colour so they
-    // look like they "grow out of" the page.
     <div className="flex flex-col h-full select-none bg-primary-900 [--page-bg:var(--color-slate-50)]">
       {/* Brand Header */}
       <div className="h-18 flex items-center px-4 shrink-0 justify-between relative">
         {/* Mobile Header Branding */}
         <div className="flex items-center gap-2.5 lg:hidden">
+          <span className="w-2 h-2 rounded-full bg-secondary-500 animate-pulse" />
           <span className="font-semibold text-white text-sm tracking-tight">
             Admin Portal
           </span>
         </div>
+
+        {/* Desktop Header Branding */}
+        {!sidebarCollapsed && (
+          <div className="hidden lg:flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-secondary-500 animate-pulse" />
+            <span className="font-bold text-secondary-400 text-xs tracking-wider uppercase">
+              Admin Console
+            </span>
+          </div>
+        )}
 
         {/* Mobile Chevron Close Button (<<) */}
         <div className="lg:hidden ml-auto">
@@ -111,12 +158,16 @@ export const Sidebar = () => {
         </div>
 
         {/* Collapse toggle button on desktop */}
-        <div className={`hidden lg:block right-3 absolute ${sidebarCollapsed ? 'justify-center px-2' : ''}`}>
+        <div
+          className={`hidden lg:block right-3 absolute ${
+            sidebarCollapsed ? 'justify-center px-2' : ''
+          }`}
+        >
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.92 }}
             onClick={toggleSidebar}
-            className="p-1.5 rounded-lg text-purple-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-primary-200 hover:text-secondary-400 hover:bg-white/10 transition-colors cursor-pointer"
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <motion.div
@@ -129,9 +180,7 @@ export const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation Links
-          - pl-3 pr-0: items must touch the RIGHT edge so the tab can merge with the page
-          - py-6: room for the 20px curves above the first / below the last item */}
+      {/* Navigation Links */}
       <div className="flex-1 pl-3 pr-0 py-6 space-y-2 overflow-y-auto">
         {mainNavItems.map((item) => {
           const isActive = activeTab === item.id;
@@ -143,28 +192,28 @@ export const Sidebar = () => {
                 setActiveTab(item.id);
                 setMobileMenuOpen(false);
               }}
-              // `isolate` keeps the indicator's -z-10 inside this button,
-              // so it can't slip behind the sidebar's background.
               className={`
                 group relative isolate w-full flex items-center gap-3 py-3 rounded-l-full text-sm font-medium transition-colors cursor-pointer
                 ${sidebarCollapsed ? 'justify-center px-2' : 'pl-4 pr-6'}
-                ${isActive ? 'text-primary-900 font-semibold' : 'text-primary-200/80 hover:text-white hover:bg-white/10'}
+                ${
+                  isActive
+                    ? 'text-primary-900 font-semibold'
+                    : 'text-primary-200/80 hover:text-white hover:bg-white/10'
+                }
               `}
               title={sidebarCollapsed ? item.label : void 0}
             >
-              {/* Sliding active tab: page-coloured pill + two concave corners */}
+              {/* Sliding active tab */}
               {isActive && (
                 <motion.span
                   layoutId="sidebarActiveIndicator"
                   transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                   className="absolute inset-y-0 left-0 right-0 -z-10 rounded-l-full bg-[var(--page-bg)]"
                 >
-                  {/* Top curve: sits just above the tab, on the sidebar's right edge */}
                   <span
                     aria-hidden
                     className="hidden lg:block pointer-events-none absolute right-0 -top-5 size-5 [background:radial-gradient(circle_at_0_0,transparent_19px,var(--page-bg)_20px)]"
                   />
-                  {/* Bottom curve: mirror image, just below the tab */}
                   <span
                     aria-hidden
                     className="hidden lg:block pointer-events-none absolute right-0 -bottom-5 size-5 [background:radial-gradient(circle_at_0_100%,transparent_19px,var(--page-bg)_20px)]"
@@ -173,7 +222,11 @@ export const Sidebar = () => {
               )}
 
               <Icon
-                className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-primary-900' : 'text-primary-200/80 group-hover:text-white'}`}
+                className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                  isActive
+                    ? 'text-primary-900'
+                    : 'text-primary-200/80 group-hover:text-white'
+                }`}
               />
 
               <AnimatePresence initial={false}>
@@ -190,60 +243,52 @@ export const Sidebar = () => {
                 )}
               </AnimatePresence>
 
-              {/* Badge indicator */}
-              {!sidebarCollapsed && item.badge !== void 0 && (
-                <span
-                  className={`ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full ${isActive ? 'bg-primary-900/10 text-primary-900' : 'bg-white/15 text-white'}`}
-                >
-                  {item.badge}
-                </span>
-              )}
-
-              {/* Collapsed dot badge */}
-              {sidebarCollapsed && item.badge !== void 0 && (
-                <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-fuchsia-400" />
+              {!sidebarCollapsed && isActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-secondary-500 shrink-0 ml-auto" />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Footer / User Profile & Navigation Out */}
+      {/* Footer / User Profile & Logout */}
       <div className="p-3 border-t border-white/10 shrink-0 space-y-2">
-
-
-        {/* User Card */}
         <div
-          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${sidebarCollapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${
+            sidebarCollapsed ? 'justify-center' : ''
+          }`}
         >
+          {/* Settings-style Initials Avatar with Online Badge */}
           <div className="relative shrink-0">
-            <img
-              src={
-                currentUser?.avatar ||
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-              }
-              alt="Admin Profile"
-              className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/20"
-            />
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-purple-950" />
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-primary-900 font-bold text-xs ring-1 ring-secondary-500/30 shrink-0 shadow-xs">
+              {initial ? (
+                initial
+              ) : (
+                <User className="w-4 h-4 text-primary-900" />
+              )}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-primary-950" />
           </div>
 
+          {/* Dynamic Full Name & Role */}
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-white truncate">
-                {currentUser?.name || 'Dean Sterling'}
+              <span className="text-xs font-bold text-white truncate" title={fullName}>
+                {fullName}
               </span>
-              <span className="text-[10px] text-purple-300 truncate">
-                Super Administrator
+              <span className="text-[10px] text-secondary-400 font-semibold truncate flex items-center gap-1" title={displayRole}>
+                <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />
+                {displayRole}
               </span>
             </div>
           )}
 
+          {/* Logout Button */}
           {!sidebarCollapsed && (
             <button
               type="button"
               onClick={logout}
-              className="p-1.5 rounded-lg text-purple-300 hover:text-rose-300 hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-primary-200 hover:text-rose-300 hover:bg-white/10 transition-colors cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -256,7 +301,7 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile Floating Drawer Trigger Button with ChevronsRight (>>) */}
+      {/* Mobile Floating Drawer Trigger Button */}
       <AnimatePresence>
         {!mobileMenuOpen && (
           <motion.button
@@ -267,17 +312,16 @@ export const Sidebar = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setMobileMenuOpen(true)}
-            className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-slate-200/90 text-primary-900 hover:text-primary-800 hover:bg-slate-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center cursor-pointer group"
+            className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-slate-200/90 text-primary-900 hover:text-secondary-500 hover:bg-slate-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center cursor-pointer group"
             title="Open navigation"
             aria-label="Open navigation sidebar"
           >
-            <ChevronsRight className="w-5 h-5 text-primary-900 group-hover:text-primary-800 transition-transform group-hover:translate-x-0.5" />
+            <ChevronsRight className="w-5 h-5 text-primary-900 group-hover:text-secondary-500 transition-transform group-hover:translate-x-0.5" />
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Desktop Animated Sidebar
-          No border-r / shadow: any line on the right edge would cut the tab off from the page. */}
+      {/* Desktop Animated Sidebar */}
       <motion.aside
         animate={{ width: sidebarCollapsed ? 80 : 260 }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}

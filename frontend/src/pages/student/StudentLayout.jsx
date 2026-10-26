@@ -15,7 +15,7 @@ import StudentAttendancePage from './StudentAttendancePage';
 import SettingsPage from '../auth/SettingsPage';
 import StudentModals from './StudentModals';
 
-export default function StudentPortalPage() {
+export default function StudentLayout() {
   const {
     currentUser,
     switchToAdmin,
@@ -38,10 +38,7 @@ export default function StudentPortalPage() {
     'CS-401: Advanced Neural Architectures',
   );
   const [isTimetableMatrixOpen, setIsTimetableMatrixOpen] = useState(false);
-  const handleOpenCheckIn = (courseName) => {
-    setCheckInCourseName(courseName);
-    setIsCheckInModalOpen(true);
-  };
+ 
   const handleEnrollElective = (elective) => {
     if (elective.isEnrolled) {
       showToast(`Already enrolled in ${elective.code}.`, 'info');
@@ -113,16 +110,9 @@ export default function StudentPortalPage() {
 
       {/* 2. Main Page Layout (Offset for Sidebar on Large Screens) */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Sticky Header */}
-        <StudentHeader
-          onOpenMobileMenu={() => setMobileSidebarOpen(true)}
-          onOpenQuickScan={() =>
-            handleOpenCheckIn('CS-401: Advanced Neural Architectures')
-          }
-        />
 
         {/* Main Content Area */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-16 lg:pt-6 pb-8 max-w-7xl w-full mx-auto">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
               <motion.div
@@ -135,7 +125,7 @@ export default function StudentPortalPage() {
                 <StudentDashboardPage
                   courses={courses}
                   onNavigateTab={setActiveTab}
-                  onOpenCheckIn={handleOpenCheckIn}
+                  // onOpenCheckIn={handleOpenCheckIn}
                   onOpenTimetable={() => setIsTimetableMatrixOpen(true)}
                   onSelectCourse={setSelectedCourse}
                 />

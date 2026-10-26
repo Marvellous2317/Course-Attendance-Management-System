@@ -6,7 +6,7 @@ import LoginPage from "../../pages/auth/LoginPage";
 import RegisterPage from "../../pages/auth/RegisterPage";
 import AdminLayout from "../../pages/admin/AdminLayout";
 import TeacherLayout from "../../pages/teacher/TeacherLayout";
-import StudentPortalPage from "../../pages/student/StudentPortalPage";
+import StudentLayout from "../../pages/student/StudentLayout";
 import { ToastContainer } from "../components/ToastContainer";
 
 // Guards
@@ -121,7 +121,7 @@ export function AppRouter() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <StudentPortalPage />
+                    <StudentLayout />
                   </motion.div>
                 }
               />

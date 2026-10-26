@@ -1,394 +1,426 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   Search,
   Clock,
   CheckCircle2,
-  Grid,
-  Download,
+  BookOpen,
+  Calendar,
+  User,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
   ArrowRight,
-  Lightbulb,
-  X,
-  ChevronDown,
-  Award,
 } from 'lucide-react';
+
+// Hooks & Context
+import {
+  useStudentOfferings,
+  useStudentEnrollments,
+  useEnrollOfferings,
+} from '../../shared/hooks/useStudent';
 import { useAdmin } from '../../context/AdminContext';
 
-
-export default function StudentEnrollmentPage({
-  electives,
-  enrolledCredits,
-  maxCredits,
-  onOpenElectiveModal,
-  onEnrollElective,
-  onOpenTimetableMatrix,
-}) {
+export default function StudentEnrollmentPage({ onNavigateTab }) {
   const { showToast } = useAdmin();
-  const [selectedTrack, setSelectedTrack] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dayFilter, setDayFilter] = useState('any');
-  const [creditsFilter, setCreditsFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('seats');
-  const [showFloatingNotice, setShowFloatingNotice] = useState(true);
-  const tracks = [
-    { id: 'all', label: 'All Tracks' },
-    { id: 'cs', label: 'Computer Science & Systems' },
-    { id: 'ai', label: 'Artificial Intelligence' },
-    { id: 'design', label: 'Design & Ergonomics' },
-  ];
-  const filteredElectives = electives.filter((item) => {
-    if (
-      selectedTrack === 'cs' &&
-      !item.department.toLowerCase().includes('computer')
-    )
-      return false;
-    if (
-      selectedTrack === 'ai' &&
-      !item.title.toLowerCase().includes('intelligence') &&
-      !item.tag.toLowerCase().includes('security')
-    )
-      return false;
-    if (
-      selectedTrack === 'design' &&
-      !item.department.toLowerCase().includes('interactive')
-    )
-      return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        item.code.toLowerCase().includes(q) ||
-        item.title.toLowerCase().includes(q) ||
-        item.instructorName.toLowerCase().includes(q)
-      );
-    }
-    return true;
+  const [page, setPage] = useState(1);
+  const [enrollingOfferingId, setEnrollingOfferingId] = useState(null);
+  const perPage = 20;
+
+  // ---------------------------------------------------------------------------
+  // 1. Fetch Available Offerings (Catalogue to enroll into)
+  // ---------------------------------------------------------------------------
+  const {
+    data: offeringsResponse,
+    isLoading: isOfferingsLoading,
+    isError: isOfferingsError,
+    error: offeringsError,
+    refetch: refetchOfferings,
+    isFetching: isOfferingsFetching,
+  } = useStudentOfferings({ page, perPage });
+
+  const offerings = Array.isArray(offeringsResponse?.data)
+    ? offeringsResponse.data
+    : Array.isArray(offeringsResponse)
+      ? offeringsResponse
+      : [];
+
+  const meta = offeringsResponse?.meta || {
+    page,
+    perPage,
+    totalPages: 1,
+    totalRecords: offerings.length,
+  };
+
+  // ---------------------------------------------------------------------------
+  // 2. Fetch Active Student Enrollments (To identify already-enrolled courses)
+  // ---------------------------------------------------------------------------
+  const { data: enrollmentsResponse } = useStudentEnrollments({
+    page: 1,
+    perPage: 100,
   });
+
+  const enrolledOfferings = Array.isArray(enrollmentsResponse?.data)
+    ? enrollmentsResponse.data
+    : Array.isArray(enrollmentsResponse)
+      ? enrollmentsResponse
+      : [];
+
+  // Set of offering IDs the student is already enrolled in
+  const enrolledOfferingIds = useMemo(() => {
+    return new Set(
+      enrolledOfferings.map((item) => Number(item.id || item.offeringId))
+    );
+  }, [enrolledOfferings]);
+
+  // ---------------------------------------------------------------------------
+  // 3. Mutation to Enroll in Course Offering
+  // ---------------------------------------------------------------------------
+  const enrollMutation = useEnrollOfferings({
+    onSuccess: (data, variables) => {
+      showToast?.('Successfully enrolled in course offering!', 'success');
+      setEnrollingOfferingId(null);
+    },
+    onError: (err) => {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to enroll in offering.';
+      showToast?.(msg, 'error');
+      setEnrollingOfferingId(null);
+    },
+  });
+
+  const handleEnroll = (offering) => {
+    setEnrollingOfferingId(offering.id);
+    // Payload accepted: [offeringId] or { offeringIds: [offeringId] }
+    enrollMutation.mutate([offering.id]);
+  };
+
+  // ---------------------------------------------------------------------------
+  // 4. Client-side Search Filter (Code, title, batch code, instructor)
+  // ---------------------------------------------------------------------------
+  const filteredOfferings = offerings.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const code = item.course?.code?.toLowerCase() || '';
+    const title = item.course?.title?.toLowerCase() || '';
+    const batch = item.batchCode?.toLowerCase() || '';
+    const instructorName = `${item.instructor?.firstName || ''} ${item.instructor?.lastName || ''}`.toLowerCase();
+    const instructorEmail = item.instructor?.email?.toLowerCase() || '';
+
+    return (
+      code.includes(q) ||
+      title.includes(q) ||
+      batch.includes(q) ||
+      instructorName.includes(q) ||
+      instructorEmail.includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6 pb-16">
-      {/* 1. Header with Badges & Credit Allowance */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* 1. Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-              • OPEN REGISTRATION WINDOW
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
+              • Open Catalogue
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700">
-              Credit Allowance: {enrolledCredits.toFixed(1)} /{' '}
-              {maxCredits.toFixed(1)} Enrolled (
-              {Math.max(0, maxCredits - enrolledCredits).toFixed(1)} Units
-              Remaining)
+              {meta.totalRecords} Available Offerings
             </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
-            Course Enrollment & Catalogue
+            Course Catalogue & Enrollment
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Explore system-wide academic modules, review recurring timetable
-            blocks, and instantly register electives for Term 2025-A.
+            Browse available course offerings and enroll directly into classes.
           </p>
         </div>
 
-        {/* Right side progress & audit button */}
-        <div className="flex items-center gap-3 shrink-0 self-start lg:self-auto">
-          <div className="hidden sm:block text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              ENROLLED PACE
-            </span>
-            <div className="w-24 bg-slate-200 h-2 rounded-full mt-1.5 overflow-hidden">
-              <div
-                className="bg-slate-900 h-full rounded-full transition-all duration-500"
-                style={{ width: `${(enrolledCredits / maxCredits) * 100}%` }}
-              />
-            </div>
-          </div>
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('courses')}
+              className="px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <span>View Enrolled Courses</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
 
-          <motion.button
+          <button
             type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onOpenTimetableMatrix}
-            className="px-4 py-2.5 rounded-2xl bg-primary-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-colors"
+            onClick={() => refetchOfferings()}
+            disabled={isOfferingsFetching}
+            className="p-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+            title="Refresh offerings"
           >
-            <Grid className="w-3.5 h-3.5 text-secondary-500" />
-            <span>Audit Match Matrix</span>
-          </motion.button>
+            <RefreshCw
+              className={`w-4 h-4 ${isOfferingsFetching ? 'animate-spin text-secondary-500' : ''}`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* 2. Track Category Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {tracks.map((track) => (
-          <button
-            key={track.id}
-            type="button"
-            onClick={() => setSelectedTrack(track.id)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${selectedTrack === track.id ? 'bg-primary-900 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-          >
-            {track.label}
-          </button>
-        ))}
-        <span className="px-3 py-1 text-[11px] text-slate-400 font-medium ml-auto hidden sm:inline-block">
-          {filteredElectives.length} Modules Available for Julian Vance-Hayes
-        </span>
-      </div>
-
-      {/* 3. Search and Dropdown Filter Bar */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+      {/* 2. Search Bar */}
+      <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter electives, profs, codes..."
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-secondary-500"
+            placeholder="Search offerings by title, course code, batch, or instructor..."
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-secondary-500 transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Day */}
-          <div className="relative">
-            <select
-              value={dayFilter}
-              onChange={(e) => setDayFilter(e.target.value)}
-              className="appearance-none bg-slate-50 border border-slate-200/80 px-3 py-1.5 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
-            >
-              <option value="any">Day: Any Day (Mon-Fri)</option>
-              <option value="mon-wed">Mon & Wed</option>
-              <option value="tue-thu">Tue & Thu</option>
-              <option value="fri">Fridays</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
-          </div>
-
-          {/* Credits */}
-          <div className="relative">
-            <select
-              value={creditsFilter}
-              onChange={(e) => setCreditsFilter(e.target.value)}
-              className="appearance-none bg-slate-50 border border-slate-200/80 px-3 py-1.5 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
-            >
-              <option value="all">Credits: All Credit Loads</option>
-              <option value="4.0">4.0 Credits</option>
-              <option value="3.5">3.5 Credits</option>
-              <option value="3.0">3.0 Credits</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
-          </div>
-
-          {/* Sort */}
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none bg-slate-50 border border-slate-200/80 px-3 py-1.5 pr-7 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer"
-            >
-              <option value="seats">
-                Sort: Available Seats / Highest Rated
-              </option>
-              <option value="code">Sort: Course Code</option>
-              <option value="credits">Sort: Credits</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Elective Cards Grid (2x2 layout matching Screen 3) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredElectives.map((elec) => {
-          const seatsPercent = Math.round(
-            (elec.seatsOpen / elec.totalSeats) * 100,
-          );
-          return (
-            <motion.div
-              key={elec.id}
-              layout
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.3 }}
-              className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md hover:border-slate-300 transition-all relative"
-            >
-              <div className="space-y-3.5">
-                {/* Top header row */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {elec.department.toUpperCase()} • {elec.credits.toFixed(1)}{' '}
-                    CR
-                  </span>
-
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${elec.seatsOpen < 10 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`}
-                  >
-                    {elec.seatsOpen < 10
-                      ? `${elec.seatsOpen} SEATS LEFT`
-                      : `${elec.seatsOpen} / ${elec.totalSeats} SEATS OPEN`}
-                  </span>
-                </div>
-
-                {/* Course Code & Title */}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-primary-900 text-secondary-500 font-mono font-bold text-xs">
-                      {elec.code}
-                    </span>
-                    <span className="text-slate-400 text-xs">•</span>
-                    <span className="text-xs font-semibold text-slate-600">
-                      {elec.tag}
-                    </span>
-                  </div>
-
-                  <h3 className="font-black text-lg text-slate-950 mt-1.5 tracking-tight leading-snug">
-                    {elec.title}
-                  </h3>
-                </div>
-
-                {/* Description */}
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {elec.description}
-                </p>
-
-                {/* Instructor */}
-                <div className="flex items-center gap-3 pt-1">
-                  <img
-                    src={elec.instructorAvatar}
-                    alt={elec.instructorName}
-                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                  />
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900">
-                      {elec.instructorName}
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      {elec.instructorTitle}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Schedule strip */}
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center gap-2.5">
-                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>
-                    {elec.schedule} • {elec.room}
-                  </span>
-                </div>
-
-                {/* Requirement Qualifier */}
-                <div className="p-2.5 rounded-xl bg-slate-50 text-xs text-slate-700 flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{elec.qualifiesRequirement}</span>
-                </div>
-              </div>
-
-              {/* Card Bottom Actions */}
-              <div className="pt-3 flex flex-col sm:flex-row sm:items-center gap-2.5 border-t border-slate-100">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => onEnrollElective(elec)}
-                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${elec.isEnrolled ? 'bg-emerald-600 text-white' : 'bg-secondary-500 hover:bg-amber-400 text-slate-950 shadow-secondary-500/20'}`}
-                >
-                  {elec.isEnrolled ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Enrolled for Term 2025-A</span>
-                    </>
-                  ) : (
-                    <span>+ Instant Enroll</span>
-                  )}
-                </motion.button>
-
-                <button
-                  type="button"
-                  onClick={() => onOpenElectiveModal(elec)}
-                  className="py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                >
-                  <span>Schedule & Syllabus</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* 5. Floating / Inset Registration Alert Notice (Matching Screen 3) */}
-      <AnimatePresence>
-        {showFloatingNotice && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-center justify-between gap-3 shadow-sm"
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="text-xs text-slate-500 hover:text-slate-900 font-semibold px-2 cursor-pointer"
           >
-            <div className="flex items-center gap-2.5">
-              <Lightbulb className="w-4 h-4 text-secondary-500 shrink-0" />
-              <div>
-                <strong className="font-bold">
-                  Term 2025-A Registration Open:{' '}
-                </strong>
-                <span>
-                  Instant enrollment publishes directly to your timetable
-                  without administrative delay.
-                </span>
-              </div>
-            </div>
+            Clear
+          </button>
+        )}
+      </div>
 
+      {/* 3. Loading State */}
+      {isOfferingsLoading && (
+        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-secondary-500 mx-auto" />
+          <p className="text-sm font-bold text-slate-700">Loading course offerings...</p>
+        </div>
+      )}
+
+      {/* 4. Error State */}
+      {!isOfferingsLoading && isOfferingsError && (
+        <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-xs space-y-3">
+          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+          <p className="text-sm font-bold text-slate-900">
+            {offeringsError?.response?.data?.message ||
+              offeringsError?.message ||
+              'Failed to load course offerings.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => refetchOfferings()}
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* 5. Empty State */}
+      {!isOfferingsLoading && !isOfferingsError && filteredOfferings.length === 0 && (
+        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-black text-slate-950">
+            {searchQuery ? 'No matching offerings found' : 'No Course Offerings Available'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {searchQuery
+              ? `No course offerings match "${searchQuery}". Try different keywords.`
+              : 'There are currently no active course offerings available for enrollment.'}
+          </p>
+          {searchQuery && (
             <button
               type="button"
-              onClick={() => setShowFloatingNotice(false)}
-              className="text-amber-800 hover:text-amber-950 p-1"
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold cursor-pointer transition-colors"
             >
-              <X className="w-3.5 h-3.5" />
+              Clear Search
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      )}
 
-      {/* 6. Bottom Banner (Degree Audit & Timetable Conflict Check Passed) */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-primary-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-5 border border-slate-800 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-secondary-500/20 text-secondary-500 flex items-center justify-center shrink-0">
-            <Award className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="font-black text-sm text-white">
-              Degree Audit & Timetable Conflict Check Passed
-            </h4>
-            <p className="text-xs text-slate-300 mt-0.5">
-              All 4 elective modules qualify for Julian's B.S. Computer Science
-              degree requirements without recurring schedule overlap.
-            </p>
+      {/* 6. Offerings Grid */}
+      {!isOfferingsLoading && !isOfferingsError && filteredOfferings.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredOfferings.map((item) => {
+            const course = item.course || {};
+            const instructor = item.instructor || {};
+            const instructorFullName =
+              instructor.firstName && instructor.lastName
+                ? `${instructor.firstName} ${instructor.lastName}`
+                : instructor.firstName || instructor.name || 'Instructor';
+
+            const isAlreadyEnrolled = enrolledOfferingIds.has(Number(item.id));
+            const isThisEnrolling =
+              enrollingOfferingId === item.id && enrollMutation.isPending;
+
+            return (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all space-y-4"
+              >
+                <div className="space-y-3">
+                  {/* Top Badges */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-xl bg-primary-900 text-secondary-500 font-mono font-black text-xs">
+                        {course.code || 'COURSE'}
+                      </span>
+                      {item.batchCode && (
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-mono font-bold text-[11px] border border-slate-200">
+                          {item.batchCode}
+                        </span>
+                      )}
+                    </div>
+
+                    {isAlreadyEnrolled ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Enrolled</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 shrink-0">
+                        <span>Open</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Course Title & Description */}
+                  <div>
+                    <h3 className="font-black text-base sm:text-lg text-slate-950 tracking-tight leading-snug">
+                      {course.title || 'Untitled Course'}
+                    </h3>
+                    {course.description && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                        {course.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Instructor Details */}
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {instructorFullName}
+                      </p>
+                      {instructor.email && (
+                        <p className="text-[11px] text-slate-500 truncate font-mono">
+                          {instructor.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sessions & Duration */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {item.sessions != null && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2 text-slate-700 font-medium">
+                        <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>{item.sessions} Sessions</span>
+                      </div>
+                    )}
+
+                    {item.duration != null && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2 text-slate-700 font-medium">
+                        <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>{item.duration} Mins / Class</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Class Schedule / Start Time */}
+                  {(item.startTime || item.classDate) && (
+                    <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/60 flex items-center gap-2 text-xs text-amber-900 font-medium">
+                      <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="truncate">
+                        {item.classDate ? `Starts ${item.classDate}` : ''}
+                        {item.classDate && item.startTime ? ' • ' : ''}
+                        {item.startTime ? `Time: ${item.startTime}` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Action Button */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Offering #{item.id}
+                  </span>
+
+                  {isAlreadyEnrolled ? (
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Already Enrolled</span>
+                    </div>
+                  ) : (
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={isThisEnrolling}
+                      onClick={() => handleEnroll(item)}
+                      className="px-5 py-2.5 rounded-xl text-xs font-black bg-secondary-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-secondary-500/20 flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      {isThisEnrolling ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                          <span>Enrolling...</span>
+                        </>
+                      ) : (
+                        <span>+ Enroll in Course</span>
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 7. Pagination Controls */}
+      {!isOfferingsLoading && !isOfferingsError && meta.totalPages > 1 && (
+        <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between text-xs text-slate-600">
+          <span>
+            Page <strong className="text-slate-900">{meta.page}</strong> of{' '}
+            <strong className="text-slate-900">{meta.totalPages}</strong> ({meta.totalRecords} total offerings)
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={meta.page <= 1}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={meta.page >= meta.totalPages}
+              onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
-
-        <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto">
-          <button
-            type="button"
-            onClick={onOpenTimetableMatrix}
-            className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
-          >
-            <Grid className="w-3.5 h-3.5 text-secondary-500" />
-            <span>Timetable Overlap Matrix</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              showToast(
-                'Generated registration audit plan PDF for academic advisor sign-off.',
-                'success',
-              )
-            }
-            className="px-4 py-2.5 rounded-xl bg-secondary-500 hover:bg-amber-400 text-slate-950 font-black text-xs cursor-pointer flex items-center gap-1.5 shadow-md shadow-secondary-500/20 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Registration Plan</span>
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
-};
+}

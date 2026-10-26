@@ -17,7 +17,7 @@ export const changePassword = async (payload) => {
 };
 
 
-export const getUserProfile = async () => {
-  const response = await axiosInstance.get('/api/profile');
+export const getUserProfile = async (headers = {}) => {
+  const response = await axiosInstance.get('/api/profile', { headers });
   return response.data;
 };

@@ -7,6 +7,8 @@ import {
   updateCourse,
   deleteCourse,
   restoreCourse,
+  getCourseStudents,
+  getCourseTeachers,
   // Teachers
   getTeacher,
   getTeachers,
@@ -14,6 +16,8 @@ import {
   updateTeacher,
   deleteTeacher,
   restoreTeacher,
+  assignCoursesToTeacher,       
+  unassignCoursesFromTeacher,   
   // Roles
   getRole,
   getRoles,
@@ -21,7 +25,20 @@ import {
   updateRole,
   deleteRole,
   restoreRole,
+  getStudent,
+  getStudents,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  restoreStudent,
+  enrollStudentOfferings,
+  unenrollStudentOfferings,
+  getAdminDashboard,
 } from "../api/admin";
+
+
+
+
 
 // ----------------------------------------------------------------------------------
 // Query Keys
@@ -30,12 +47,41 @@ export const ADMIN_KEYS = {
   courses: (params = {}) => ["adminCourses", params],
   allCourses: ["adminCourses"], // Invalidation prefix matching both active & deleted
   course: (id) => ["adminCourse", id],
+
   teachers: (params = {}) => ["adminTeachers", params],
   allTeachers: ["adminTeachers"],
   teacher: (teacherId) => ["adminTeacher", teacherId],
-  roles: ["adminRoles"],
+
+  roles: (params = {}) => ["adminRoles", params],
+  allRoles: ["adminRoles"],
   role: (roleId) => ["adminRole", roleId],
+
+  students: (params = {}) => ["adminStudents", params],
+  allStudents: ["adminStudents"], // Prefix matching all active/deleted/paginated student queries
+  student: (id) => ["adminStudent", id],
+
+  dashboard: ["adminDashboard"],
+  analytics: ["adminDashboard"],
+
+  // Course Students
+  courseStudents: (courseId, params = {}) => ["adminCourseStudents", courseId, params],
+  allCourseStudents: (courseId) => ["adminCourseStudents", courseId],
+  // Course Teachers
+  courseTeachers: (courseId, params = {}) => ["adminCourseTeachers", courseId, params],
+  allCourseTeachers: (courseId) => ["adminCourseTeachers", courseId],
 };
+
+
+export const useAdminDashboard = (options = {}) =>
+  useQuery({
+    queryKey: ADMIN_KEYS.dashboard,
+    queryFn: getAdminDashboard,
+    // Optional sensible defaults: refetch when window refocuses or keep fresh for 1 min
+    staleTime: 1000 * 60,
+    ...options,
+  });
+
+
 // // ----------------------------------------------------------------------------------
 // // Courses Hooks
 // // ----------------------------------------------------------------------------------
@@ -76,6 +122,7 @@ export const useAdminCourses = (params = {}, options = {}) => {
     ...queryOptions,
   });
 };
+
 export const useAdminCourse = (id, options = {}) =>
   useQuery({
     queryKey: ADMIN_KEYS.course(id),
@@ -83,6 +130,7 @@ export const useAdminCourse = (id, options = {}) =>
     enabled: Boolean(id),
     ...options,
   });
+
 export const useCreateCourse = (options = {}) => {
   const queryClient = useQueryClient();
   const { onSuccess, ...restOptions } = options;
@@ -96,6 +144,7 @@ export const useCreateCourse = (options = {}) => {
     ...restOptions,
   });
 };
+
 export const useUpdateCourse = (options = {}) => {
   const queryClient = useQueryClient();
   const { onSuccess, ...restOptions } = options;
@@ -110,36 +159,28 @@ export const useUpdateCourse = (options = {}) => {
     ...restOptions,
   });
 };
+
 export const useDeleteCourse = (options = {}) => {
   const queryClient = useQueryClient();
-  const { onSuccess, ...restOptions } = options;
+  const { onSuccess, ...restOptions } = options; // Prevents options from overwriting onSuccess
   return useMutation({
     mutationFn: (id) => deleteCourse(id),
     onSuccess: (data, id, context) => {
-      // 1. Instant UI update: Remove from active courses cache immediately
-      queryClient.setQueryData(ADMIN_KEYS.courses({ isDeleted: false }), (old) =>
-        updateCourseListCache(old, (list) => list.filter((c) => !matchId(c, id)))
-      );
-      // 2. Refetch both active and deleted lists from server
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allCourses });
+      queryClient.invalidateQueries({ queryKey: ["adminCourses"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.course(id) });
       onSuccess?.(data, id, context);
     },
     ...restOptions,
   });
 };
+
 export const useRestoreCourse = (options = {}) => {
   const queryClient = useQueryClient();
-  const { onSuccess, ...restOptions } = options;
+  const { onSuccess, ...restOptions } = options; // Prevents options from overwriting onSuccess
   return useMutation({
     mutationFn: (id) => restoreCourse(id),
     onSuccess: (data, id, context) => {
-      // 1. Instant UI update: Remove from deleted courses cache immediately
-      queryClient.setQueryData(ADMIN_KEYS.courses({ isDeleted: true }), (old) =>
-        updateCourseListCache(old, (list) => list.filter((c) => !matchId(c, id)))
-      );
-      // 2. Refetch both active and deleted lists from server
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allCourses });
+      queryClient.invalidateQueries({ queryKey: ["adminCourses"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.course(id) });
       onSuccess?.(data, id, context);
     },
@@ -147,128 +188,27 @@ export const useRestoreCourse = (options = {}) => {
   });
 };
 
-// export const useAdminCourses = (options = {}) =>
-//   useQuery({
-//     queryKey: ADMIN_KEYS.courses,
-//     queryFn: getCourses,
-//     ...options,
-//   });
+// ----------------------------------------------------------------------------------
+export const useAdminCourseStudents = (courseId, params = {}, options = {}) =>
+  useQuery({
+    queryKey: ADMIN_KEYS.courseStudents(courseId, params),
+    queryFn: () => getCourseStudents(courseId, params),
+    enabled: Boolean(courseId), // Prevents request if courseId is null or undefined
+    placeholderData: (previousData) => previousData, // Keeps previous page data while fetching next page
+    ...options,
+  });
+// ----------------------------------------------------------------------------------
+// Course Teachers Hook
+// ----------------------------------------------------------------------------------
+export const useAdminCourseTeachers = (courseId, params = {}, options = {}) =>
+  useQuery({
+    queryKey: ADMIN_KEYS.courseTeachers(courseId, params),
+    queryFn: () => getCourseTeachers(courseId, params),
+    enabled: Boolean(courseId), // Prevents request if courseId is null or undefined
+    placeholderData: (previousData) => previousData,
+    ...options,
+  });
 
-// export const useAdminCourse = (id, options = {}) =>
-//   useQuery({
-//     queryKey: ADMIN_KEYS.course(id),
-//     queryFn: () => getCourse(id),
-//     enabled: Boolean(id),
-//     ...options,
-//   });
-
-// export const useCreateCourse = (options = {}) => {
-//   const queryClient = useQueryClient();
-//   const { onSuccess, ...restOptions } = options;
-
-//   return useMutation({
-//     mutationFn: createCourse,
-//     onSuccess: (data, variables, context) => {
-//       const newCourse = data?.course || data?.data || (data?.code ? data : null);
-
-//       // 1. INSTANT UI UPDATE: Inject new course into cache immediately
-//       if (newCourse) {
-//         queryClient.setQueryData(ADMIN_KEYS.courses, (old) =>
-//           updateCourseListCache(old, (list) => [newCourse, ...list])
-//         );
-//       }
-
-//       // 2. Refetch in background to stay 100% in sync
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses });
-
-//       // 3. Trigger your modal close & form reset
-//       onSuccess?.(data, variables, context);
-//     },
-//     ...restOptions,
-//   });
-// };
-
-// export const useUpdateCourse = (options = {}) => {
-//   const queryClient = useQueryClient();
-//   const { onSuccess, ...restOptions } = options;
-
-//   return useMutation({
-//     mutationFn: ({ id, payload }) => updateCourse(id, payload),
-//     onSuccess: (data, variables, context) => {
-//       const { id, payload } = variables;
-//       const updatedItem = data?.course || data?.data || data;
-
-//       // 1. INSTANT UI UPDATE: Update course in cache immediately
-//       queryClient.setQueryData(ADMIN_KEYS.courses, (old) =>
-//         updateCourseListCache(old, (list) =>
-//           list.map((c) =>
-//             matchId(c, id) ? { ...c, ...payload, ...updatedItem } : c
-//           )
-//         )
-//       );
-
-//       // 2. Invalidate cache for background consistency
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses });
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.course(id) });
-
-//       // 3. Trigger modal close
-//       onSuccess?.(data, variables, context);
-//     },
-//     ...restOptions,
-//   });
-// };
-
-// export const useDeleteCourse = (options = {}) => {
-//   const queryClient = useQueryClient();
-//   const { onSuccess, ...restOptions } = options;
-
-//   return useMutation({
-//     mutationFn: (id) => deleteCourse(id),
-//     onSuccess: (data, id, context) => {
-//       // 1. INSTANT UI UPDATE: Mark as deleted in cache immediately
-//       queryClient.setQueryData(ADMIN_KEYS.courses, (old) =>
-//         updateCourseListCache(old, (list) =>
-//           list.map((c) =>
-//             matchId(c, id) ? { ...c, isDeleted: true, status: "Deleted" } : c
-//           )
-//         )
-//       );
-
-//       // 2. Refetch from server
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses });
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.course(id) });
-
-//       onSuccess?.(data, id, context);
-//     },
-//     ...restOptions,
-//   });
-// };
-
-// export const useRestoreCourse = (options = {}) => {
-//   const queryClient = useQueryClient();
-//   const { onSuccess, ...restOptions } = options;
-
-//   return useMutation({
-//     mutationFn: (id) => restoreCourse(id),
-//     onSuccess: (data, id, context) => {
-//       // 1. INSTANT UI UPDATE: Mark as active in cache immediately
-//       queryClient.setQueryData(ADMIN_KEYS.courses, (old) =>
-//         updateCourseListCache(old, (list) =>
-//           list.map((c) =>
-//             matchId(c, id) ? { ...c, isDeleted: false, status: "Active" } : c
-//           )
-//         )
-//       );
-
-//       // 2. Refetch from server
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses });
-//       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.course(id) });
-
-//       onSuccess?.(data, id, context);
-//     },
-//     ...restOptions,
-//   });
-// };
 
 // ----------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------
@@ -298,12 +238,15 @@ const matchTeacherId = (item, targetId) =>
 // Teachers Hooks (Instant Real-Time Updates)
 // ----------------------------------------------------------------------------------
 
-export const useAdminTeachers = (options = {}) =>
-  useQuery({
-    queryKey: ADMIN_KEYS.teachers,
-    queryFn: getTeachers,
+export const useAdminTeachers = (params = {}, options = {}) => {
+  const queryParams = typeof params === "boolean" ? { isDeleted: params } : params;
+  const { isDeleted = false, ...restParams } = queryParams;
+  return useQuery({
+    queryKey: ADMIN_KEYS.teachers ? ADMIN_KEYS.teachers({ isDeleted, ...restParams }) : ["adminTeachers", { isDeleted, ...restParams }],
+    queryFn: () => getTeachers({ isDeleted, ...restParams }),
     ...options,
   });
+};
 
 export const useAdminTeacher = (teacherId, options = {}) =>
   useQuery({
@@ -373,39 +316,219 @@ export const useUpdateTeacher = (options = {}) => {
 
 export const useDeleteTeacher = (options = {}) => {
   const queryClient = useQueryClient();
-  const { onSuccess, ...restOptions } = options;
-
+  const { onSuccess, ...restOptions } = options; // Prevents options from overwriting onSuccess!
   return useMutation({
     mutationFn: (teacherId) => deleteTeacher(teacherId),
     onSuccess: (data, teacherId, context) => {
-      // 1. INSTANT UI UPDATE: Remove from active teachers cache immediately
-      queryClient.setQueryData(ADMIN_KEYS.teachers, (old) =>
-        updateTeacherListCache(old, (list) =>
-          list.filter((t) => !matchTeacherId(t, teacherId))
-        )
-      );
-
-      // 2. Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
+      // Invalidate both Active and Deleted lists (prefix matching)
+      queryClient.invalidateQueries({ queryKey: ["adminTeachers"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(teacherId) });
-
       onSuccess?.(data, teacherId, context);
     },
     ...restOptions,
   });
 };
 
+
 export const useRestoreTeacher = (options = {}) => {
   const queryClient = useQueryClient();
-  const { onSuccess, ...restOptions } = options;
-
+  const { onSuccess, ...restOptions } = options; // Prevents options from overwriting onSuccess!
   return useMutation({
     mutationFn: (teacherId) => restoreTeacher(teacherId),
     onSuccess: (data, teacherId, context) => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teachers });
+      // Invalidate both Active and Deleted lists (prefix matching)
+      queryClient.invalidateQueries({ queryKey: ["adminTeachers"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(teacherId) });
-
       onSuccess?.(data, teacherId, context);
+    },
+    ...restOptions,
+  });
+};
+
+// ----------------------------------------------------------------------------------
+// Student Cache Helpers
+// ----------------------------------------------------------------------------------
+const updateStudentListCache = (oldData, updateFn) => {
+  if (!oldData) return oldData;
+  if (Array.isArray(oldData)) {
+    return updateFn(oldData);
+  }
+  if (oldData.students && Array.isArray(oldData.students)) {
+    return { ...oldData, students: updateFn(oldData.students) };
+  }
+  if (oldData.data && Array.isArray(oldData.data)) {
+    return { ...oldData, data: updateFn(oldData.data) };
+  }
+  return oldData;
+};
+const matchStudentId = (item, targetId) =>
+  String(item?._id || item?.id || item?.studentId) === String(targetId);
+
+// ----------------------------------------------------------------------------------
+// Students Hooks
+// ----------------------------------------------------------------------------------
+// 1. Fetch Students (supports pagination: page, perPage, and isDeleted: true/false)
+export const useAdminStudents = (params = {}, options = {}) => {
+  const { page = 1, perPage = 20, isDeleted = false, ...restParams } = params;
+  const queryParams = { page, perPage, isDeleted, ...restParams };
+  const queryOptions = { ...options };
+  return useQuery({
+    queryKey: ADMIN_KEYS.students(queryParams),
+    queryFn: () => getStudents(queryParams),
+    ...queryOptions,
+  });
+};
+// 2. Fetch Single Student by ID
+export const useAdminStudent = (id, options = {}) =>
+  useQuery({
+    queryKey: ADMIN_KEYS.student(id),
+    queryFn: () => getStudent(id),
+    enabled: Boolean(id),
+    ...options,
+  });
+// 3. Create Student
+export const useCreateStudent = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: createStudent,
+    onSuccess: (data, variables, context) => {
+      // Invalidate all student list queries (prefix matching refreshes all tabs/pages)
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+// 4. Update Student
+export const useUpdateStudent = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ id, payload }) => updateStudent(id, payload),
+    onSuccess: (data, variables, context) => {
+      const { id, payload } = variables;
+      const updatedItem = data?.student || data?.data || data;
+      // 1. Instant UI update in cache
+      queryClient.setQueryData(ADMIN_KEYS.allStudents, (old) =>
+        updateStudentListCache(old, (list) =>
+          list.map((s) =>
+            matchStudentId(s, id) ? { ...s, ...payload, ...updatedItem } : s
+          )
+        )
+      );
+      // 2. Invalidate queries for background consistency
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.student(id) });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+// 5. Delete Student (Soft Delete)
+export const useDeleteStudent = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: (id) => deleteStudent(id),
+    onSuccess: (data, id, context) => {
+      // Invalidate both active and deleted lists
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.student(id) });
+      onSuccess?.(data, id, context);
+    },
+    ...restOptions,
+  });
+};
+// 6. Restore Student
+export const useRestoreStudent = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: (id) => restoreStudent(id),
+    onSuccess: (data, id, context) => {
+      // Invalidate both active and deleted lists
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.student(id) });
+      onSuccess?.(data, id, context);
+    },
+    ...restOptions,
+  });
+};
+
+export const useAssignCoursesToTeacher = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ teacherId, id, payload, courseIds }) => {
+      const targetId = teacherId ?? id;
+      const body = payload ?? (courseIds ? { courseIds } : {});
+      return assignCoursesToTeacher(targetId, body);
+    },
+    onSuccess: (data, variables, context) => {
+      const targetId = variables.teacherId ?? variables.id;
+      // Invalidate teacher list & the specific teacher query
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allTeachers });
+      if (targetId) {
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(targetId) });
+      }
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+// ----------------------------------------------------------------------------------
+// Unassign Courses from Teacher (Removes specified courses)
+// ----------------------------------------------------------------------------------
+export const useUnassignCoursesFromTeacher = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ teacherId, id, payload, courseIds }) => {
+      const targetId = teacherId ?? id;
+      const body = payload ?? (courseIds ? { courseIds } : {});
+      return unassignCoursesFromTeacher(targetId, body);
+    },
+    onSuccess: (data, variables, context) => {
+      const targetId = variables.teacherId ?? variables.id;
+      // Invalidate teacher list & the specific teacher query
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allTeachers });
+      if (targetId) {
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(targetId) });
+      }
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+
+
+// 7. Enroll Student into Course Offerings
+export const useEnrollStudentOfferings = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ id, payload }) => enrollStudentOfferings(id, payload),
+    onSuccess: (data, variables, context) => {
+      const { id } = variables;
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.student(id) });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+// 8. Unenroll Student from Course Offerings
+export const useUnenrollStudentOfferings = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ id, payload }) => unenrollStudentOfferings(id, payload),
+    onSuccess: (data, variables, context) => {
+      const { id } = variables;
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allStudents });
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.student(id) });
+      onSuccess?.(data, variables, context);
     },
     ...restOptions,
   });
@@ -415,12 +538,20 @@ export const useRestoreTeacher = (options = {}) => {
 // Roles Hooks
 // ----------------------------------------------------------------------------------
 
-export const useAdminRoles = (options = {}) =>
-  useQuery({
-    queryKey: ADMIN_KEYS.roles,
-    queryFn: getRoles,
-    ...options,
+export const useAdminRoles = (params = {}, options = {}) => {
+  const isDeleted = Boolean(params?.isDeleted);
+  const queryOptions = { ...params, ...options };
+  delete queryOptions.isDeleted;
+  const key =
+    typeof ADMIN_KEYS.roles === "function"
+      ? ADMIN_KEYS.roles({ isDeleted })
+      : ["adminRoles", { isDeleted }];
+  return useQuery({
+    queryKey: key,
+    queryFn: () => getRoles({ isDeleted }),
+    ...queryOptions,
   });
+};
 
 export const useAdminRole = (roleId, options = {}) =>
   useQuery({
@@ -436,7 +567,7 @@ export const useCreateRole = (options = {}) => {
   return useMutation({
     mutationFn: createRole,
     onSuccess: (data, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.roles });
+      queryClient.invalidateQueries({ queryKey: ["adminRoles"] });
       options.onSuccess?.(data, variables, context);
     },
     ...options,
@@ -449,7 +580,7 @@ export const useUpdateRole = (options = {}) => {
   return useMutation({
     mutationFn: ({ roleId, payload }) => updateRole(roleId, payload),
     onSuccess: (data, { roleId }, context) => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.roles });
+      queryClient.invalidateQueries({ queryKey: ["adminRoles"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.role(roleId) });
       options.onSuccess?.(data, { roleId }, context);
     },
@@ -463,7 +594,7 @@ export const useDeleteRole = (options = {}) => {
   return useMutation({
     mutationFn: (roleId) => deleteRole(roleId),
     onSuccess: (data, roleId, context) => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.roles });
+      queryClient.invalidateQueries({ queryKey: ["adminRoles"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.role(roleId) });
       options.onSuccess?.(data, roleId, context);
     },
@@ -477,7 +608,7 @@ export const useRestoreRole = (options = {}) => {
   return useMutation({
     mutationFn: (roleId) => restoreRole(roleId),
     onSuccess: (data, roleId, context) => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.roles });
+      queryClient.invalidateQueries({ queryKey: ["adminRoles"] });
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.role(roleId) });
       options.onSuccess?.(data, roleId, context);
     },
@@ -485,12 +616,3 @@ export const useRestoreRole = (options = {}) => {
   });
 };
 
-// ----------------------------------------------------------------------------------
-// Aliases (Optional convenience exports)
-// ----------------------------------------------------------------------------------
-export const useCourses = useAdminCourses;
-export const useCourse = useAdminCourse;
-export const useTeachers = useAdminTeachers;
-export const useTeacher = useAdminTeacher;
-export const useRoles = useAdminRoles;
-export const useRole = useAdminRole;

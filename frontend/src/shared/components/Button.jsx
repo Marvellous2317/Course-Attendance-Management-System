@@ -23,6 +23,10 @@ export const Button = ({
   const variantStyles = {
     primary:
       'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-indigo-600/20 hover:shadow-md hover:shadow-indigo-600/25 focus-visible:ring-indigo-500',
+    accent:
+      'bg-secondary-500 hover:bg-secondary-600 active:bg-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20 hover:shadow-amber-500/30 focus-visible:ring-secondary-500',
+    amber:
+      'bg-secondary-500 hover:bg-secondary-600 active:bg-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20 hover:shadow-amber-500/30 focus-visible:ring-secondary-500',
     secondary:
       'bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white shadow-slate-900/20 focus-visible:ring-slate-800',
     outline:

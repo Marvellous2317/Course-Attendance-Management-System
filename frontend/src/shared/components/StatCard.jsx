@@ -43,8 +43,14 @@ export const StatCard = ({
       ring: 'group-hover:ring-amber-100',
       border: 'border-amber-100',
     },
+    teal: {
+      bg: 'bg-teal-50/80',
+      text: 'text-teal-600',
+      ring: 'group-hover:ring-teal-100',
+      border: 'border-teal-100',
+    },
   };
-  const scheme = colorMap[colorScheme];
+  const scheme = colorMap[colorScheme] || colorMap.indigo;
   const isPositive = growth !== void 0 ? growth >= 0 : true;
   return (
     <motion.div

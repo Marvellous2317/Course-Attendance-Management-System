@@ -9,6 +9,7 @@ import CoursesView from "./CoursesView";
 import SchedulesView  from "./SchedulesView";
 import FinancesView  from "./FinancesView";
 import AnnouncementsView  from "./AnnouncementsView";
+// import RolesView from "./RolesView";
 import SettingsPage from "../auth/SettingsPage";
 import AdminModals from "./AdminModals";
 
@@ -31,6 +32,8 @@ export default function AdminLayout () {
         return <FinancesView key="finances" />;
       case "announcements":
         return <AnnouncementsView key="announcements" />;
+      // case "roles":
+      //   return <RolesView key="roles" />;
       case "settings":
         return <SettingsPage key="settings" />;
       default:
@@ -38,7 +41,7 @@ export default function AdminLayout () {
     }
   };
   return (
-    <div className="min-h-screen bg-slate-50/60 flex antialiased text-slate-900">
+    <div className="min-h-screen bg-slate-50/60 flex antialiased text-slate-900 selection:bg-secondary-500/30 selection:text-slate-950">
       {/* Administrative Sidebar */}
       <Sidebar />
 

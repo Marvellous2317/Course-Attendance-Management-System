@@ -4,9 +4,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { RoleRedirect } from './RoleRedirect';
 
 export const GuestRoute = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
-  if (isAuthenticated) {
+  if (isAuthenticated && user?.role) {
     // Already logged in? Redirect to their role portal
     return <RoleRedirect />;
   }

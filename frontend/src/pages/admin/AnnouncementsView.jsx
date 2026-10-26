@@ -19,11 +19,30 @@ export default function AnnouncementsView () {
   });
   return (
     <div className="space-y-6 pb-12">
-      {/* Control bar */}
+      {/* 1. Header & Title with Orange Category Tag */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-900 border border-amber-200/80 mb-2">
+            <span className="w-2 h-2 rounded-full bg-secondary-500 animate-pulse" />
+            <span>CAMPUS DISPATCH</span>
+            <span className="text-amber-400">•</span>
+            <span>INSTITUTIONAL BROADCASTS</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+            Institutional Notices & Announcements
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Publish bulletins, semester alerts, and departmental notifications to students and faculty.
+          </p>
+        </div>
+      </div>
+
+      {/* 2. Control bar */}
       <ScrollReveal delay={0.05}>
         <Card className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 Audience:
@@ -33,7 +52,11 @@ export default function AnnouncementsView () {
                   key={aud}
                   type="button"
                   onClick={() => setSelectedAudience(aud)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${selectedAudience === aud ? "bg-indigo-600 text-white shadow-xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    selectedAudience === aud
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
                 >
                   {aud}
                 </button>
@@ -41,9 +64,9 @@ export default function AnnouncementsView () {
             </div>
 
             <Button
-              variant="primary"
+              variant="accent"
               size="sm"
-              iconLeft={<Plus className="w-4 h-4" />}
+              iconLeft={<Plus className="w-4 h-4 text-slate-950" />}
               onClick={() => openModal("add-announcement")}
             >
               Post New Notice

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, History, Lock, ShieldCheck, Loader2 } from "lucide-react";
+import { Clock, History, Lock, ShieldCheck, Loader2, User } from "lucide-react";
 import { useAdmin } from "../../context/AdminContext";
 import { Modal } from "../../shared/components/Modal";
 import { Button } from "../../shared/components/Button";
@@ -11,6 +11,8 @@ import {
   useUpdateTeacher,
   useCreateCourse,
   useUpdateCourse,
+  useCreateStudent,
+  useUpdateStudent,
 } from "../../shared/hooks/useAdmin";
 
 const INITIAL_TEACHER_FORM = {
@@ -26,14 +28,117 @@ const INITIAL_COURSE_FORM = {
   description: "",
 };
 
+const INITIAL_STUDENT_FORM = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+};
+
+const INITIAL_EDIT_STUDENT_FORM = {
+  id: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  createdAt: "",
+  updatedAt: "",
+};
+
 export default function AdminModals() {
   const {
     activeModal,
     closeModal,
     modalData,
-    addStudent,
     addAnnouncement,
   } = useAdmin();
+
+  // ---------------------------------------------------------------------------
+  // Student Hooks & State (Create & Edit)
+  // ---------------------------------------------------------------------------
+  const [studentForm, setStudentForm] = useState(INITIAL_STUDENT_FORM);
+  const [editStudentForm, setEditStudentForm] = useState(INITIAL_EDIT_STUDENT_FORM);
+
+  // Populate Edit Student Form when modal opens
+  useEffect(() => {
+    if (activeModal === "edit-student" && modalData) {
+      const id = modalData.id ?? modalData._id ?? modalData.studentId ?? "";
+      const firstName =
+        modalData.firstName ||
+        (modalData.name ? modalData.name.split(" ")[0] : "");
+      const lastName =
+        modalData.lastName ||
+        (modalData.name ? modalData.name.split(" ").slice(1).join(" ") : "");
+
+      setEditStudentForm({
+        id,
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: modalData.email || "",
+        createdAt: modalData.createdAt || "",
+        updatedAt: modalData.updatedAt || "",
+      });
+    }
+  }, [activeModal, modalData]);
+
+  // Create Student Mutation
+  const {
+    mutate: createStudentMutation,
+    isPending: isCreatingStudent,
+    error: createStudentError,
+    reset: resetCreateStudent,
+  } = useCreateStudent({
+    onSuccess: () => {
+      closeModal();
+      setStudentForm(INITIAL_STUDENT_FORM);
+      resetCreateStudent();
+    },
+  });
+
+  // Update Student Mutation
+  const {
+    mutate: updateStudentMutation,
+    isPending: isUpdatingStudent,
+    error: updateStudentError,
+    reset: resetUpdateStudent,
+  } = useUpdateStudent({
+    onSuccess: () => {
+      closeModal();
+      resetUpdateStudent();
+    },
+  });
+
+  const handleStudentSubmit = (e) => {
+    e.preventDefault();
+    if (
+      !studentForm.firstName ||
+      !studentForm.lastName ||
+      !studentForm.email ||
+      !studentForm.password
+    )
+      return;
+
+    createStudentMutation({
+      firstName: studentForm.firstName.trim(),
+      lastName: studentForm.lastName.trim(),
+      email: studentForm.email.trim(),
+      password: studentForm.password,
+    });
+  };
+
+  const handleEditStudentSubmit = (e) => {
+    e.preventDefault();
+    const studentId = editStudentForm.id;
+    if (!studentId || !editStudentForm.firstName || !editStudentForm.lastName)
+      return;
+
+    updateStudentMutation({
+      id: studentId,
+      payload: {
+        firstName: editStudentForm.firstName.trim(),
+        lastName: editStudentForm.lastName.trim(),
+      },
+    });
+  };
 
   // ---------------------------------------------------------------------------
   // Teacher Hooks & State (Create & Edit)
@@ -71,7 +176,6 @@ export default function AdminModals() {
     }
   }, [activeModal, modalData]);
 
-  // 1. Create Teacher Mutation
   const {
     mutate: createTeacherMutation,
     isPending: isCreatingTeacher,
@@ -85,7 +189,6 @@ export default function AdminModals() {
     },
   });
 
-  // 2. Update Teacher Mutation
   const {
     mutate: updateTeacherMutation,
     isPending: isUpdatingTeacher,
@@ -127,7 +230,6 @@ export default function AdminModals() {
       payload: {
         firstName: editTeacherForm.firstName.trim(),
         lastName: editTeacherForm.lastName.trim(),
-        // email: editTeacherForm.email.trim(),
       },
     });
   };
@@ -146,7 +248,6 @@ export default function AdminModals() {
     updatedAt: "",
   });
 
-  // Populate Edit Course Form when modal opens
   useEffect(() => {
     if (activeModal === "edit-course" && modalData) {
       setEditCourseForm({
@@ -188,7 +289,6 @@ export default function AdminModals() {
   const handleCourseSubmit = (e) => {
     e.preventDefault();
     if (!courseForm.code || !courseForm.title) return;
-
     createCourseMutation(courseForm);
   };
 
@@ -208,22 +308,8 @@ export default function AdminModals() {
   };
 
   // ---------------------------------------------------------------------------
-  // Student & Announcement States
+  // Announcement State
   // ---------------------------------------------------------------------------
-  const [studentForm, setStudentForm] = useState({
-    name: "",
-    email: "",
-    grade: "Grade 10",
-    section: "Section A",
-    guardian: "",
-    phone: "",
-    status: "Active",
-    attendanceRate: 98,
-    gpa: 3.8,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-  });
-
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     content: "",
@@ -233,13 +319,6 @@ export default function AdminModals() {
     targetAudience: "All",
     pinned: false,
   });
-
-  const handleStudentSubmit = (e) => {
-    e.preventDefault();
-    if (!studentForm.name || !studentForm.email) return;
-    addStudent(studentForm);
-    closeModal();
-  };
 
   const handleAnnouncementSubmit = (e) => {
     e.preventDefault();
@@ -255,21 +334,45 @@ export default function AdminModals() {
         isOpen={activeModal === "add-student"}
         onClose={closeModal}
         title="Enroll New Student"
-        subtitle="Create an official academic record and assign grade level"
+        subtitle="Create an official student record and assign credentials"
       >
         <form onSubmit={handleStudentSubmit} className="space-y-4">
+          {createStudentError && (
+            <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
+              {createStudentError?.response?.data?.message ||
+                createStudentError?.message ||
+                "Failed to enroll student. Please try again."}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Full Name *
+                First Name *
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Liam Parker"
-                value={studentForm.name}
+                placeholder="e.g. Ada"
+                value={studentForm.firstName}
                 onChange={(e) =>
-                  setStudentForm({ ...studentForm, name: e.target.value })
+                  setStudentForm({ ...studentForm, firstName: e.target.value })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Lovelace"
+                value={studentForm.lastName}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, lastName: e.target.value })
                 }
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
               />
@@ -282,7 +385,7 @@ export default function AdminModals() {
               <input
                 type="email"
                 required
-                placeholder="liam.p@edupulse.edu"
+                placeholder="ada@example.com"
                 value={studentForm.email}
                 onChange={(e) =>
                   setStudentForm({ ...studentForm, email: e.target.value })
@@ -290,14 +393,125 @@ export default function AdminModals() {
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Password *
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="secret123"
+                value={studentForm.password}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, password: e.target.value })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={closeModal}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeModal}
+              disabled={isCreatingStudent}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
-              Enroll Student
+            <Button
+              type="submit"
+              variant="accent"
+              disabled={isCreatingStudent}
+              iconLeft={
+                isCreatingStudent ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                ) : null
+              }
+            >
+              {isCreatingStudent ? "Enrolling..." : "Enroll Student"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 1b. Edit Student Modal */}
+      <Modal
+        isOpen={activeModal === "edit-student"}
+        onClose={closeModal}
+        title="Edit Student Profile"
+        subtitle="Update academic profile and name specifications"
+      >
+        <form onSubmit={handleEditStudentSubmit} className="space-y-4">
+          {updateStudentError && (
+            <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
+              {updateStudentError?.response?.data?.message ||
+                updateStudentError?.message ||
+                "Failed to update student. Please try again."}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                First Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="First Name"
+                value={editStudentForm.firstName}
+                onChange={(e) =>
+                  setEditStudentForm({
+                    ...editStudentForm,
+                    firstName: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Last Name"
+                value={editStudentForm.lastName}
+                onChange={(e) =>
+                  setEditStudentForm({
+                    ...editStudentForm,
+                    lastName: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeModal}
+              disabled={isUpdatingStudent}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="accent"
+              disabled={isUpdatingStudent}
+              iconLeft={
+                isUpdatingStudent ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                ) : null
+              }
+            >
+              {isUpdatingStudent ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>
@@ -396,11 +610,11 @@ export default function AdminModals() {
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="accent"
               disabled={isCreatingTeacher}
               iconLeft={
                 isCreatingTeacher ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                 ) : null
               }
             >
@@ -415,7 +629,7 @@ export default function AdminModals() {
         isOpen={activeModal === "edit-teacher"}
         onClose={closeModal}
         title="Edit Teacher Profile"
-        subtitle="Update account specifications." 
+        subtitle="Update account specifications."
       >
         <form onSubmit={handleEditTeacherSubmit} className="space-y-4">
           {updateTeacherError && (
@@ -466,8 +680,6 @@ export default function AdminModals() {
             </div>
           </div>
 
-          
-
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
             <Button
               type="button"
@@ -479,11 +691,11 @@ export default function AdminModals() {
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="accent"
               disabled={isUpdatingTeacher}
               iconLeft={
                 isUpdatingTeacher ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                 ) : null
               }
             >
@@ -569,11 +781,11 @@ export default function AdminModals() {
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="accent"
               disabled={isCreatingCourse}
               iconLeft={
                 isCreatingCourse ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                 ) : null
               }
             >
@@ -704,11 +916,11 @@ export default function AdminModals() {
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="accent"
               disabled={isUpdatingCourse}
               iconLeft={
                 isUpdatingCourse ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                 ) : null
               }
             >
@@ -749,7 +961,7 @@ export default function AdminModals() {
             <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="accent">
               Publish Notice
             </Button>
           </div>

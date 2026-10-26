@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -6,9 +7,27 @@ import {
   CalendarDays,
   Settings,
   LogOut,
+  User,
   ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAdmin } from '../../context/AdminContext';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import { getUserProfile } from '../../shared/api/auth';
+
+// Helper to format role names ({ id: 2, name: "teacher" } -> "Teacher")
+const formatRole = (r) => {
+  const raw = typeof r === 'object' ? r?.name : r;
+  if (!raw) return 'Teacher';
+  if (typeof raw === 'string') {
+    return raw.toLowerCase() === 'admin'
+      ? 'Super Admin'
+      : raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return 'Teacher';
+};
 
 export default function TeacherSidebar() {
   const {
@@ -18,8 +37,85 @@ export default function TeacherSidebar() {
     toggleSidebar,
     mobileMenuOpen,
     setMobileMenuOpen,
+    currentUser,
     logout,
   } = useAdmin();
+
+  // ---------------------------------------------------------------------------
+  // Profile Data & API Consumption
+  // ---------------------------------------------------------------------------
+  const { user, setUser } = useAuthStore();
+
+  const { data: profileResponse } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: getUserProfile,
+    staleTime: 1000 * 60 * 5, // keep fresh for 5 minutes
+  });
+
+  // Sync latest server profile into Zustand store
+  useEffect(() => {
+    const profile = profileResponse?.data || profileResponse;
+    if (profile && typeof profile === 'object') {
+      setUser({
+        ...user,
+        ...profile,
+        role: profile.role || user?.role,
+      });
+    }
+  }, [profileResponse]);
+
+  // Resolve current active profile values
+  const currentProfile = profileResponse?.data || profileResponse || user || currentUser;
+  const firstName =
+    currentProfile?.firstName ||
+    (currentProfile?.name ? currentProfile.name.split(' ')[0] : '');
+  const lastName =
+    currentProfile?.lastName ||
+    (currentProfile?.name
+      ? currentProfile.name.split(' ').slice(1).join(' ')
+      : '');
+  const fullName =
+    `${firstName} ${lastName}`.trim() || currentProfile?.name || 'Faculty Member';
+  const displayRole = formatRole(currentProfile?.role);
+  const initial = firstName
+    ? firstName.charAt(0).toUpperCase()
+    : fullName
+    ? fullName.charAt(0).toUpperCase()
+    : '';
+
+  // Close mobile drawer on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
+
+  // Close mobile drawer if resized to desktop breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -40,8 +136,28 @@ export default function TeacherSidebar() {
     // look like they "grow out of" the page.
     <div className="flex flex-col h-full select-none bg-primary-900 [--page-bg:var(--color-slate-50)]">
       {/* Brand Header */}
-      <div className="h-18 flex items-center px-4 shrink-0 justify-between">
-        
+      <div className="h-18 flex items-center px-4 shrink-0 justify-between relative">
+        {/* Mobile Header Branding */}
+        <div className="flex items-center gap-2.5 lg:hidden">
+          <span className="font-semibold text-white text-sm tracking-tight">
+            Faculty Portal
+          </span>
+        </div>
+
+        {/* Mobile Chevron Close Button (<<) */}
+        <div className="lg:hidden ml-auto">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-1.5 rounded-lg text-primary-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center group"
+            title="Close sidebar"
+            aria-label="Close navigation sidebar"
+          >
+            <ChevronsLeft className="w-5 h-5 text-primary-200 group-hover:text-white transition-colors" />
+          </motion.button>
+        </div>
+
         {/* Desktop Collapse Toggle */}
         <div
           className={`hidden lg:block right-3 absolute ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
@@ -143,31 +259,38 @@ export default function TeacherSidebar() {
         })}
       </div>
 
-      {/* Footer Profile Card */}
+      {/* Footer / User Profile & Logout */}
       <div className="p-3 border-t border-white/10 shrink-0 space-y-2">
         <div
-          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${sidebarCollapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${
+            sidebarCollapsed ? 'justify-center' : ''
+          }`}
         >
+          {/* Settings-style Initials Avatar with Online Badge */}
           <div className="relative shrink-0">
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80"
-              alt="Dr. Eleanor Vance"
-              className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/20"
-            />
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-indigo-700 font-bold text-xs ring-1 ring-white/20 shrink-0 shadow-xs">
+              {initial ? (
+                initial
+              ) : (
+                <User className="w-4 h-4 text-indigo-600" />
+              )}
+            </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-purple-950" />
           </div>
 
+          {/* Dynamic Full Name & Role */}
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-white truncate">
-                Dr. Eleanor Vance
+              <span className="text-xs font-bold text-white truncate" title={fullName}>
+                {fullName}
               </span>
-              <span className="text-[10px] text-purple-300 truncate">
-                Faculty • Senior
+              <span className="text-[10px] text-purple-300 truncate" title={displayRole}>
+                {displayRole}
               </span>
             </div>
           )}
 
+          {/* Logout Button */}
           {!sidebarCollapsed && (
             <button
               type="button"
@@ -185,6 +308,26 @@ export default function TeacherSidebar() {
 
   return (
     <>
+      {/* Mobile Floating Drawer Trigger Button */}
+      <AnimatePresence>
+        {!mobileMenuOpen && (
+          <motion.button
+            key="mobile-sidebar-toggle-btn"
+            initial={{ opacity: 0, scale: 0.85, x: -10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.85, x: -10 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setMobileMenuOpen(true)}
+            className="fixed top-4 left-4 z-40 lg:hidden p-2.5 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-slate-200/90 text-primary-900 hover:text-primary-800 hover:bg-slate-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center cursor-pointer group"
+            title="Open navigation"
+            aria-label="Open navigation sidebar"
+          >
+            <ChevronsRight className="w-5 h-5 text-primary-900 group-hover:text-primary-800 transition-transform group-hover:translate-x-0.5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Animated Sidebar
           No border-r / shadow: any line on the right edge would cut the tab off from the page. */}
       <motion.aside

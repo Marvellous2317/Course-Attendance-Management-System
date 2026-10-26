@@ -14,7 +14,26 @@ export default function SchedulesView () {
   const daySchedules = schedules.filter((s) => s.day === activeDay);
   return (
     <div className="space-y-6 pb-12">
-      {/* Day Selector Pills Bar */}
+      {/* 1. Header & Title with Orange Category Tag */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-900 border border-amber-200/80 mb-2">
+            <span className="w-2 h-2 rounded-full bg-secondary-500 animate-pulse" />
+            <span>CAMPUS TIMETABLE</span>
+            <span className="text-amber-400">•</span>
+            <span>FACILITY ALLOCATIONS</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+            Lecture Schedules & Venues
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Weekly room allocations, lecture halls, and laboratory venue scheduling.
+          </p>
+        </div>
+      </div>
+
+      {/* 2. Day Selector Pills Bar */}
       <ScrollReveal delay={0.05}>
         <Card className="p-3.5 sm:p-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -27,11 +46,19 @@ export default function SchedulesView () {
                     key={day}
                     type="button"
                     onClick={() => setActiveDay(day)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isSelected ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
                   >
                     <span>{day}</span>
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-indigo-700 text-white" : "bg-slate-200 text-slate-700"}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        isSelected
+                          ? "bg-amber-500/20 text-secondary-400 border border-amber-400/30"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
                     >
                       {count}
                     </span>
@@ -41,9 +68,9 @@ export default function SchedulesView () {
             </div>
 
             <Button
-              variant="outline"
+              variant="accent"
               size="sm"
-              iconLeft={<Plus className="w-4 h-4" />}
+              iconLeft={<Plus className="w-4 h-4 text-slate-950" />}
               onClick={() =>
                 showToast("Classroom booking module activated", "info")
               }
