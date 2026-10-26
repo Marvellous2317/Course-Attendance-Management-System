@@ -91,10 +91,14 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func normalizeRole(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
 func IsAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := cmscontext.UserFrom(r.Context())
-		if user == nil || user.Role.Name != "admin" {
+		if user == nil || normalizeRole(user.Role.Name) != "admin" {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
@@ -105,7 +109,7 @@ func IsAdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func IsStudentMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := cmscontext.UserFrom(r.Context())
-		if user == nil || user.Role.Name != "student" {
+		if user == nil || normalizeRole(user.Role.Name) != "student" {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
@@ -116,7 +120,8 @@ func IsStudentMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func IsInstructorMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := cmscontext.UserFrom(r.Context())
-		if user == nil || user.Role.Name != "instructor" {
+		role := normalizeRole(user.Role.Name)
+		if user == nil || (role != "instructor" && role != "teacher") {
 			writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
