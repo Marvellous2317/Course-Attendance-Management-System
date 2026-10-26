@@ -1782,6 +1782,40 @@ paths:
       summary: Update a student
       tags:
       - students
+  /admin/students/{id}/enrollments:
+    get:
+      description: Returns the course offerings (with course and instructor info)
+        that a given student is enrolled in. Admin only.
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OfferingListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: View a student's enrolled courses
+      tags:
+      - students
   /admin/students/{id}/offerings:
     delete:
       consumes:
@@ -2390,6 +2424,26 @@ paths:
       summary: My attendance
       tags:
       - student
+  /student/attendance/export:
+    get:
+      description: Downloads the authenticated student's full attendance history as
+        a CSV file.
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Export my attendance as CSV
+      tags:
+      - student
   /student/dashboard:
     get:
       description: Returns totals for the authenticated student's enrollments, upcoming
@@ -2947,6 +3001,26 @@ paths:
       security:
       - BearerAuth: []
       summary: Mark attendance
+      tags:
+      - teacher
+  /teacher/students/export:
+    get:
+      description: Downloads a CSV of every student enrolled across the authenticated
+        teacher's course offerings.
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Export my students as CSV
       tags:
       - teacher
 schemes:

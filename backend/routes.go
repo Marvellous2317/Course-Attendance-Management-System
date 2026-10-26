@@ -77,6 +77,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/admin/students/{id}/offerings", chain(h.UnassignOfferings, admin...))
 	mux.HandleFunc("DELETE /api/admin/students/{id}", chain(h.DeleteStudent, admin...))
 	mux.HandleFunc("PATCH /api/admin/students/{id}/restore", chain(h.RestoreStudent, admin...))
+	mux.HandleFunc("GET /api/admin/students/{id}/enrollments", chain(h.GetAdminStudentEnrollments, admin...))
 
 	// teacher routes (scoped to the courses and offerings the teacher owns or teaches)
 	mux.HandleFunc("POST /api/teacher/courses", chain(h.CreateTeacherCourse, instructor...))
@@ -89,6 +90,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("GET /api/teacher/offerings/{id}/sessions", chain(h.ListSessions, instructor...))
 	mux.HandleFunc("GET /api/teacher/sessions/{id}/attendance", chain(h.GetSessionAttendance, instructor...))
 	mux.HandleFunc("PUT /api/teacher/sessions/{id}/attendance", chain(h.MarkAttendance, instructor...))
+	mux.HandleFunc("GET /api/teacher/students/export", chain(h.ExportTeacherStudents, instructor...))
 	mux.HandleFunc("GET /api/teacher/dashboard", chain(h.GetTeacherDashboard, instructor...))
 
 	// student routes (scoped to the authenticated student)
@@ -97,6 +99,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("POST /api/student/enrollments", chain(h.EnrollStudent, student...))
 	mux.HandleFunc("DELETE /api/student/enrollments/{offeringId}", chain(h.DropEnrollment, student...))
 	mux.HandleFunc("GET /api/student/attendance", chain(h.GetMyAttendance, student...))
+	mux.HandleFunc("GET /api/student/attendance/export", chain(h.ExportStudentAttendance, student...))
 	mux.HandleFunc("GET /api/student/dashboard", chain(h.GetStudentDashboard, student...))
 
 	// admin dashboard
