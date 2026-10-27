@@ -46,11 +46,15 @@ var DB *gorm.DB
 // @tag.name students
 // @tag.description Student administration
 func main() {
+	// Local dev only: load .env if it exists, otherwise rely on real env vars
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("No .env file found, using environment variables")
 	}
 
 	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL is not set")
+	}
 
 	var err error
 
@@ -60,7 +64,6 @@ func main() {
 	}
 
 	err = DB.AutoMigrate(&models.User{}, &models.Role{}, &models.Course{}, &models.CourseOffering{}, &models.ClassSession{}, &models.Attendance{}, &models.SessionToken{})
-
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -74,10 +77,14 @@ func main() {
 	}
 	handler := corsMiddleware(allowedOrigin, router)
 
-	fmt.Println("Server is running on http://localhost:8080...")
-
-	if err := http.ListenAndServe(":8080", handler); err != nil {
-		fmt.Printf("Failed to start server: %v\n", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
+	fmt.Printf("Server is running on port %s...\n", port)
+
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }

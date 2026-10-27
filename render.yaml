@@ -1,0 +1,32 @@
+services:
+  # 1. Backend Go Web Service
+  - type: web
+    name: cms-backend
+    runtime: go
+    plan: free
+    rootDir: backend
+    buildCommand: go build -o server .
+    startCommand: ./server
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGIN
+        sync: false
+      - key: ENABLE_SWAGGER
+        value: "true"
+
+  # 2. Frontend React / Rsbuild Static Site
+  - type: web
+    name: cms-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: PUBLIC_API_BASE_URL
+        sync: false
