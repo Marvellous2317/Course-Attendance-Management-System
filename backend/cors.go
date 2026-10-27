@@ -9,8 +9,13 @@ func corsMiddleware(allowedOrigin string, next http.Handler) http.Handler {
 		if r.Header.Get("Origin") == allowedOrigin {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+
+			if requested := r.Header.Get("Access-Control-Request-Headers"); requested != "" {
+				w.Header().Set("Access-Control-Allow-Headers", requested)
+			} else {
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			}
 		}
 
 		if r.Method == http.MethodOptions {
