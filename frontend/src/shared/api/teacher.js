@@ -168,3 +168,14 @@ export const markTeacherSessionAttendance = async (sessionId, payload) => {
   );
   return response.data;
 };
+
+/**
+ * Export all enrolled students across authenticated teacher's offerings as CSV
+ * GET /api/teacher/students/export
+ */
+export const exportTeacherStudentsCSV = async () => {
+  const response = await axiosInstance.get('/api/teacher/students/export', {
+    responseType: 'blob',
+  });
+  return response.data;
+};

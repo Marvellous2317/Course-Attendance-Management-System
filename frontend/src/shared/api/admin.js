@@ -198,3 +198,11 @@ export const restoreRole = async (roleId) => {
     const response = await axiosInstance.patch(`/api/admin/roles/${roleId}/restore`);
     return response.data;
 };
+
+export const getAdminStudentEnrollments = async (studentId, params = {}) => {
+  const response = await axiosInstance.get(
+    `/api/admin/students/${studentId}/enrollments`,
+    { params }
+  );
+  return response.data;
+};

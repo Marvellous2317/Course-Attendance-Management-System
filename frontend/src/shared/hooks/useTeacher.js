@@ -11,6 +11,7 @@ import {
   createTeacherSession,
   getTeacherSessionAttendance,
   markTeacherSessionAttendance,
+  exportTeacherStudentsCSV
 } from "../api/teacher"; // Adjust relative path to your teacher API file
 
 // ----------------------------------------------------------------------------------
@@ -303,8 +304,30 @@ export const useMarkTeacherAttendance = (options = {}) => {
   });
 };
 
-// ----------------------------------------------------------------------------------
-// Convenience Aliases
-// ----------------------------------------------------------------------------------
-export const useTeacherAttendance = useTeacherSessionAttendance;
-export const useMarkAttendance = useMarkTeacherAttendance;
+
+/**
+ * Downloads a CSV of every student enrolled across the authenticated teacher's course offerings
+ */
+export const useExportTeacherStudents = (options = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      const blob = await exportTeacherStudentsCSV();
+      // Create download link in browser
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([blob], { type: 'text/csv' })
+      );
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute(
+        'download',
+        `enrolled_students_${new Date().toISOString().slice(0, 10)}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      return blob;
+    },
+    ...options,
+  });
+};
