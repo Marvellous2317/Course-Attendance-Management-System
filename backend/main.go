@@ -20,9 +20,9 @@ var DB *gorm.DB
 // @title           Course Attendance Management API
 // @version         1.0
 // @description     API for managing roles, courses, teachers, students, course offerings and attendance.
-// @host            localhost:8080
+// @host
 // @BasePath        /api
-// @schemes         http
+// @schemes         https http
 
 // @securityDefinitions.apikey BearerAuth
 // @in header

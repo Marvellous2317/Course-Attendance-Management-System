@@ -1102,7 +1102,6 @@ definitions:
       updatedAt:
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
   description: API for managing roles, courses, teachers, students, course offerings
@@ -3024,6 +3023,7 @@ paths:
       tags:
       - teacher
 schemes:
+- https
 - http
 securityDefinitions:
   BearerAuth:

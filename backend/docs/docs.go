@@ -4602,9 +4602,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "",
 	BasePath:         "/api",
-	Schemes:          []string{"http"},
+	Schemes:          []string{"https", "http"},
 	Title:            "Course Attendance Management API",
 	Description:      "API for managing roles, courses, teachers, students, course offerings and attendance.",
 	InfoInstanceName: "swagger",
