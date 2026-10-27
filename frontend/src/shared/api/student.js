@@ -79,3 +79,14 @@ export const dropStudentOffering = async (offeringId) => {
   const response = await axiosInstance.delete(`/api/student/enrollments/${offeringId}`);
   return response.data;
 };
+
+/**
+ * Export authenticated student's full attendance history as a CSV file
+ * GET /api/student/attendance/export
+ */
+export const exportStudentAttendanceCSV = async () => {
+  const response = await axiosInstance.get('/api/student/attendance/export', {
+    responseType: 'blob',
+  });
+  return response.data;
+};

@@ -34,6 +34,7 @@ import {
   enrollStudentOfferings,
   unenrollStudentOfferings,
   getAdminDashboard,
+  getAdminStudentEnrollments
 } from "../api/admin";
 
 
@@ -69,6 +70,16 @@ export const ADMIN_KEYS = {
   // Course Teachers
   courseTeachers: (courseId, params = {}) => ["adminCourseTeachers", courseId, params],
   allCourseTeachers: (courseId) => ["adminCourseTeachers", courseId],
+
+  studentEnrollments: (studentId, params = {}) => [
+    "adminStudentEnrollments",
+    studentId,
+    params,
+  ],
+  allStudentEnrollments: (studentId) => [
+    "adminStudentEnrollments",
+    studentId,
+  ],
 };
 
 
@@ -612,6 +623,20 @@ export const useRestoreRole = (options = {}) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.role(roleId) });
       options.onSuccess?.(data, roleId, context);
     },
+    ...options,
+  });
+};
+
+export const useAdminStudentEnrollments = (
+  studentId,
+  params = {},
+  options = {}
+) => {
+  return useQuery({
+    queryKey: ADMIN_KEYS.studentEnrollments(studentId, params),
+    queryFn: () => getAdminStudentEnrollments(studentId, params),
+    enabled: Boolean(studentId),
+    placeholderData: (prev) => prev,
     ...options,
   });
 };

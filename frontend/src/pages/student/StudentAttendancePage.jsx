@@ -9,7 +9,7 @@ import {
   Search,
   Loader2,
   AlertCircle,
-  RefreshCw,
+  Download,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -17,8 +17,11 @@ import {
   Percent,
 } from 'lucide-react';
 
-// Live TanStack Query Hook & Context
-import { useStudentAttendance } from '../../shared/hooks/useStudent';
+// Live TanStack Query Hooks & Context
+import {
+  useStudentAttendance,
+  useExportStudentAttendance,
+} from '../../shared/hooks/useStudent';
 import { useAdmin } from '../../context/AdminContext';
 
 export default function StudentAttendancePage({ onNavigateTab }) {
@@ -54,13 +57,28 @@ export default function StudentAttendancePage({ onNavigateTab }) {
     totalRecords: attendanceList.length,
   };
 
-  const handleRefresh = async () => {
-    await refetch();
-    showToast?.('Attendance ledger updated.', 'success');
+  // ---------------------------------------------------------------------------
+  // 2. Export Attendance as CSV Mutation
+  // ---------------------------------------------------------------------------
+  const exportMutation = useExportStudentAttendance({
+    onSuccess: () => {
+      showToast?.('Attendance history CSV downloaded successfully.', 'success');
+    },
+    onError: (err) => {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to export attendance CSV';
+      showToast?.(msg, 'error');
+    },
+  });
+
+  const handleExportCSV = () => {
+    exportMutation.mutate();
   };
 
   // ---------------------------------------------------------------------------
-  // 2. Computed Real Aggregates from Live API
+  // 3. Computed Real Aggregates from Live API
   // ---------------------------------------------------------------------------
   const totalOfferings = attendanceList.length;
 
@@ -91,11 +109,13 @@ export default function StudentAttendancePage({ onNavigateTab }) {
 
   // List of unique course titles for the filter dropdown
   const uniqueCourseTitles = useMemo(() => {
-    return Array.from(new Set(attendanceList.map((c) => c.courseTitle).filter(Boolean)));
+    return Array.from(
+      new Set(attendanceList.map((c) => c.courseTitle).filter(Boolean))
+    );
   }, [attendanceList]);
 
   // ---------------------------------------------------------------------------
-  // 3. Filter Offerings & Their Records
+  // 4. Filter Offerings & Their Records
   // ---------------------------------------------------------------------------
   const filteredOfferings = useMemo(() => {
     return attendanceList
@@ -168,10 +188,10 @@ export default function StudentAttendancePage({ onNavigateTab }) {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* 1. Header */}
+      {/* 1. Header with Export CSV Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-           <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
             My Attendance
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -179,19 +199,24 @@ export default function StudentAttendancePage({ onNavigateTab }) {
           </p>
         </div>
 
+        {/* Replaced Refresh with Export CSV Button */}
         <button
           type="button"
-          onClick={handleRefresh}
-          disabled={isFetching}
-          className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-colors"
+          onClick={handleExportCSV}
+          disabled={exportMutation.isPending}
+          className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 hover:text-slate-950 text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+          title="Download complete attendance history as CSV"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-secondary-500' : ''}`} />
-          <span>Refresh</span>
+          {exportMutation.isPending ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-secondary-500" />
+          ) : (
+            <Download className="w-3.5 h-3.5 text-slate-600" />
+          )}
+          <span>{exportMutation.isPending ? 'Exporting CSV...' : 'Export CSV'}</span>
         </button>
       </div>
 
-      
-      {/* 3. Search & Filters */}
+      {/* 2. Search & Filters */}
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
@@ -253,7 +278,7 @@ export default function StudentAttendancePage({ onNavigateTab }) {
         </div>
       </div>
 
-      {/* 4. Loading State */}
+      {/* 3. Loading State */}
       {isLoading && (
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-secondary-500 mx-auto" />
@@ -261,7 +286,7 @@ export default function StudentAttendancePage({ onNavigateTab }) {
         </div>
       )}
 
-      {/* 5. Error State */}
+      {/* 4. Error State */}
       {!isLoading && isError && (
         <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-xs space-y-3">
           <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
@@ -278,7 +303,7 @@ export default function StudentAttendancePage({ onNavigateTab }) {
         </div>
       )}
 
-      {/* 6. Empty State */}
+      {/* 5. Empty State */}
       {!isLoading && !isError && filteredOfferings.length === 0 && (
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mx-auto">
@@ -297,7 +322,7 @@ export default function StudentAttendancePage({ onNavigateTab }) {
         </div>
       )}
 
-      {/* 7. Per-Offering Attendance Cards & Session Records */}
+      {/* 6. Per-Offering Attendance Cards & Session Records */}
       {!isLoading && !isError && filteredOfferings.length > 0 && (
         <div className="space-y-6">
           {filteredOfferings.map((offering) => {
@@ -336,10 +361,11 @@ export default function StudentAttendancePage({ onNavigateTab }) {
                         {percentage.toFixed(1)}%
                       </div>
                       <span
-                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${isGoodStanding
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                          isGoodStanding
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}
+                        }`}
                       >
                         {isGoodStanding ? 'Good Standing' : 'Below 85% Target'}
                       </span>
@@ -355,8 +381,9 @@ export default function StudentAttendancePage({ onNavigateTab }) {
                   </div>
                   <div className="relative w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${isGoodStanding ? 'bg-slate-900' : 'bg-amber-600'
-                        }`}
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isGoodStanding ? 'bg-slate-900' : 'bg-amber-600'
+                      }`}
                       style={{ width: `${Math.min(100, percentage)}%` }}
                     />
                     {/* 85% target marker */}
@@ -433,7 +460,7 @@ export default function StudentAttendancePage({ onNavigateTab }) {
         </div>
       )}
 
-      {/* 8. Pagination Controls */}
+      {/* 7. Pagination Controls */}
       {!isLoading && !isError && meta.totalPages > 1 && (
         <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between text-xs text-slate-600">
           <span>

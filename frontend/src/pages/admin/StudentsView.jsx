@@ -12,6 +12,12 @@ import {
   Search,
   Shield,
   Calendar,
+  BookOpen,
+  User,
+  Clock,
+  Layers,
+  ChevronRight,
+  X,
 } from "lucide-react";
 import { useAdmin } from "../../context/AdminContext";
 import { Card } from "../../shared/components/Card";
@@ -27,6 +33,7 @@ import {
   useAdminStudents,
   useDeleteStudent,
   useRestoreStudent,
+  useAdminStudentEnrollments,
 } from "../../shared/hooks/useAdmin";
 
 // Defensive ID extractor
@@ -59,6 +66,96 @@ const normalizeList = (res) => {
   return [];
 };
 
+// ==============================================================================
+// Sub-component: Student Enrolled Courses Badges
+// ==============================================================================
+function StudentEnrolledCourses({ studentId, onViewAll }) {
+  const { data, isLoading, isError } = useAdminStudentEnrollments(studentId, {
+    perPage: 50,
+  });
+
+  const enrollments = useMemo(() => normalizeList(data), [data]);
+
+  if (isLoading) {
+    return (
+      <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[11px] text-slate-400">
+        <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+        <span>Loading enrolled courses...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="pt-2 border-t border-slate-100 text-[11px] text-rose-500">
+        Could not load enrolled courses
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="font-bold text-slate-600 flex items-center gap-1.5">
+          <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Enrolled Courses</span>
+        </span>
+        <span
+          onClick={() => enrollments.length > 0 && onViewAll?.(enrollments)}
+          className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+            enrollments.length > 0
+              ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
+              : "bg-slate-100 text-slate-500"
+          }`}
+          title={enrollments.length > 0 ? "Click to view full course details" : ""}
+        >
+          {enrollments.length} {enrollments.length === 1 ? "Course" : "Courses"}
+        </span>
+      </div>
+
+      {enrollments.length === 0 ? (
+        <p className="text-[11px] text-slate-400 italic">No course enrollments found</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {enrollments.slice(0, 3).map((enr) => {
+            const course = enr.course || {};
+            const code = course.code || `Course #${enr.courseId || enr.id}`;
+            const title = course.title || enr.batchCode || "";
+
+            return (
+              <span
+                key={enr.id}
+                title={`${code}: ${title}${enr.batchCode ? ` (${enr.batchCode})` : ""}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-100 max-w-[130px] truncate"
+              >
+                <span className="font-mono">{code}</span>
+                {enr.batchCode && (
+                  <span className="text-[9px] text-indigo-500 font-semibold">
+                    • {enr.batchCode}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+
+          {enrollments.length > 3 && (
+            <button
+              type="button"
+              onClick={() => onViewAll?.(enrollments)}
+              className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+            >
+              +{enrollments.length - 3} more
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==============================================================================
+// Main Students View
+// ==============================================================================
 export default function StudentsView() {
   const adminContext = useAdmin?.() || {};
   const { openModal } = adminContext;
@@ -76,6 +173,9 @@ export default function StudentsView() {
 
   // State for inline restoring spinner
   const [restoringId, setRestoringId] = useState(null);
+
+  // State for Viewing Student's Full Enrolled Courses Modal
+  const [activeStudentCourses, setActiveStudentCourses] = useState(null);
 
   // ---------------------------------------------------------------------------
   // 1. Fetch Active Students
@@ -160,15 +260,14 @@ export default function StudentsView() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Header & Title with Orange Category Tag */}
+      {/* 1. Header & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
             Student Directory & Admissions
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage matriculated students, admissions roster, soft-deleted records, and credentials.
+            Manage matriculated students, admissions roster, enrolled courses, and records.
           </p>
         </div>
       </div>
@@ -327,7 +426,7 @@ export default function StudentsView() {
             return (
               <ScrollReveal key={studentId || index} delay={0.03 * (index % 12)}>
                 <Card className="p-4 h-full flex flex-col justify-between hover:border-slate-300 transition-all group">
-                  <div className="space-y-3.5">
+                  <div className="space-y-3">
                     {/* Header info */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
@@ -354,7 +453,7 @@ export default function StudentsView() {
                       </Badge>
                     </div>
 
-                    {/* Email and Date Meta */}
+                    {/* Email and Joined Date Meta */}
                     <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
                       <div className="flex items-center gap-2 truncate">
                         <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -368,6 +467,19 @@ export default function StudentsView() {
                         </div>
                       )}
                     </div>
+
+                    {/* Live Enrolled Courses Section */}
+                    {studentId && (
+                      <StudentEnrolledCourses
+                        studentId={studentId}
+                        onViewAll={(enrollments) =>
+                          setActiveStudentCourses({
+                            student,
+                            enrollments,
+                          })
+                        }
+                      />
+                    )}
                   </div>
 
                   {/* Actions Bar */}
@@ -419,6 +531,82 @@ export default function StudentsView() {
           })}
         </div>
       )}
+
+      {/* Full Enrolled Courses Details Modal */}
+      <Modal
+        isOpen={Boolean(activeStudentCourses)}
+        onClose={() => setActiveStudentCourses(null)}
+        title={
+          activeStudentCourses
+            ? `${getStudentName(activeStudentCourses.student)}'s Courses`
+            : "Enrolled Courses"
+        }
+        subtitle="Complete course offerings and cohorts assigned to this student."
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          {activeStudentCourses?.enrollments?.length === 0 ? (
+            <p className="text-xs text-slate-500 py-4 text-center">
+              No course enrollments on record.
+            </p>
+          ) : (
+            activeStudentCourses?.enrollments?.map((enr) => {
+              const course = enr.course || {};
+              const instructor = enr.instructor;
+
+              return (
+                <div
+                  key={enr.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                          {course.code || "COURSE"}
+                        </span>
+                        {enr.batchCode && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                            {enr.batchCode}
+                          </span>
+                        )}
+                      </div>
+                      <h5 className="font-bold text-sm text-slate-900 mt-1">
+                        {course.title || "Untitled Course"}
+                      </h5>
+                    </div>
+
+                    {enr.duration && (
+                      <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1 shrink-0">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <span>{enr.duration} mins</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Instructor & Sessions Info */}
+                  <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <span>
+                        {instructor
+                          ? `${instructor.firstName || ""} ${instructor.lastName || ""}`.trim() ||
+                            instructor.email
+                          : "Instructor Unassigned"}
+                      </span>
+                    </span>
+
+                    {enr.sessions && (
+                      <span className="font-semibold text-slate-600">
+                        {enr.sessions} Sessions
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Modal>
 
       {/* Custom Delete Confirmation Modal */}
       <Modal

@@ -6,6 +6,7 @@ import {
   getStudentEnrollments,
   enrollStudentOfferings,
   dropStudentOffering,
+  exportStudentAttendanceCSV
 } from "../api/student";
 
 // ----------------------------------------------------------------------------------
@@ -177,3 +178,33 @@ export const useDropOffering = (options = {}) => {
   });
 };
 
+
+
+/**
+ * Downloads the authenticated student's full attendance history as a CSV file
+ */
+export const useExportStudentAttendance = (options = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      const blob = await exportStudentAttendanceCSV();
+
+      // Trigger automatic browser download
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([blob], { type: 'text/csv' })
+      );
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute(
+        'download',
+        `student_attendance_${new Date().toISOString().split('T')[0]}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+
+      return blob;
+    },
+    ...options,
+  });
+};
