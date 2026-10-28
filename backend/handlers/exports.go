@@ -160,9 +160,15 @@ func (h *Handler) GetAdminStudentEnrollments(w http.ResponseWriter, r *http.Requ
 		response = append(response, toOfferingResponse(offering))
 	}
 
+	total := int64(len(response))
+	pp := len(response)
+	if pp == 0 {
+		pp = 1
+	}
+
 	writeJSON(w, http.StatusOK, OfferingListResponse{
 		Message: "Request successful",
 		Data:    response,
-		Meta:    newPaginationMeta(int64(len(response)), 1, len(response)),
+		Meta:    newPaginationMeta(total, 1, pp),
 	})
 }
