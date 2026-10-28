@@ -31,7 +31,23 @@ import {
   useTeacherCourses,
   useTeacherOfferings,
   useTeacherOfferingStudents,
+  useCreateTeacherOffering,
 } from "../../shared/hooks/useTeacher";
+
+// =============================================================================
+// Offering Helpers
+// =============================================================================
+const MAX_BATCH_CODE_LENGTH = 10;
+
+// Builds a short, unique-looking batch code from a course code (backend caps it at 10 chars).
+const suggestBatchCode = (course) => {
+  const base = (course?.code || "BATCH")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return `${base.slice(0, 8) || "BATCH"}-A`.slice(0, MAX_BATCH_CODE_LENGTH);
+};
+
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
 // =============================================================================
 // Course Card Component (Displays course, offering details & student count)
@@ -41,6 +57,7 @@ function TeacherCourseCardItem({
   offerings = [],
   onViewStudents,
   onTakeAttendance,
+  onCreateOffering,
   openMenuCourseId,
   setOpenMenuCourseId,
   showToast,
@@ -114,6 +131,18 @@ function TeacherCourseCardItem({
               {/* Dropdown Menu */}
               {isMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-30 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenMenuCourseId(null);
+                      onCreateOffering(course);
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600" />
+                    <span>New Course Offering</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -206,13 +235,24 @@ function TeacherCourseCardItem({
 
       {/* Action Buttons */}
       <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => onTakeAttendance(primaryOffering || course)}
-          className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-        >
-          Take Attendance
-        </button>
+        {primaryOffering ? (
+          <button
+            type="button"
+            onClick={() => onTakeAttendance(primaryOffering || course)}
+            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Take Attendance
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onCreateOffering(course)}
+            className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-600" />
+            <span>Schedule Batch</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -423,6 +463,336 @@ function CourseStudentsRosterModal({ target, onClose }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+// =============================================================================
+// Create Offering Modal (Schedules a batch for one of the teacher's courses)
+// =============================================================================
+function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
+  const { showToast } = useToast();
+  const [courseId, setCourseId] = useState(() => {
+    if (initialCourseId) return String(initialCourseId);
+    return courses[0]?.id != null ? String(courses[0].id) : "";
+  });
+  const initialCourse =
+    courses.find((c) => String(c.id) === String(initialCourseId)) || courses[0];
+
+  const [batchCode, setBatchCode] = useState(() =>
+    initialCourse ? suggestBatchCode(initialCourse) : ""
+  );
+  const [classDate, setClassDate] = useState(todayInputValue);
+  const [startTime, setStartTime] = useState("09:00");
+  const [duration, setDuration] = useState(90);
+  const [sessions, setSessions] = useState(12);
+  const [formError, setFormError] = useState("");
+
+  const selectedCourse = courses.find((c) => String(c.id) === String(courseId));
+
+  const createOfferingMutation = useCreateTeacherOffering({
+    onSuccess: () => {
+      showToast?.("Course offering created successfully.", "success");
+      onClose?.();
+    },
+    onError: (err) => {
+      setFormError(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to create the course offering."
+      );
+    },
+  });
+
+  const handleCourseChange = (value) => {
+    setCourseId(value);
+    setFormError("");
+    // Only re-suggest the batch code when the field is still the previous suggestion.
+    const previousSuggestion = initialCourse ? suggestBatchCode(initialCourse) : "";
+    if (!batchCode.trim() || batchCode === previousSuggestion) {
+      const nextCourse = courses.find((c) => String(c.id) === String(value));
+      setBatchCode(nextCourse ? suggestBatchCode(nextCourse) : "");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError("");
+
+    const trimmedBatchCode = batchCode.trim();
+    const durationNumber = Number(duration);
+    const sessionsNumber = Number(sessions);
+
+    if (!courseId) {
+      setFormError("Please select the course this offering belongs to.");
+      return;
+    }
+    if (!trimmedBatchCode) {
+      setFormError("Batch code is required.");
+      return;
+    }
+    if (trimmedBatchCode.length > MAX_BATCH_CODE_LENGTH) {
+      setFormError(
+        `Batch code must be at most ${MAX_BATCH_CODE_LENGTH} characters.`
+      );
+      return;
+    }
+    if (!classDate || !startTime) {
+      setFormError("Class date and start time are required.");
+      return;
+    }
+
+    const startDateTime = new Date(`${classDate}T${startTime}:00`);
+    if (isNaN(startDateTime.getTime())) {
+      setFormError("Invalid class date or start time.");
+      return;
+    }
+    if (!Number.isFinite(durationNumber) || durationNumber <= 0) {
+      setFormError("Duration must be greater than 0 minutes.");
+      return;
+    }
+    if (!Number.isFinite(sessionsNumber) || sessionsNumber <= 0) {
+      setFormError("Number of sessions must be greater than 0.");
+      return;
+    }
+
+    try {
+      await createOfferingMutation.mutateAsync({
+        courseId: Number(courseId),
+        payload: {
+          batchCode: trimmedBatchCode,
+          // Backend expects RFC3339 timestamps for both fields.
+          classDate: new Date(`${classDate}T00:00:00`).toISOString(),
+          startTime: startDateTime.toISOString(),
+          duration: durationNumber,
+          sessions: sessionsNumber,
+        },
+      });
+    } catch {
+      // Error surfaced through onError.
+    }
+  };
+
+  const isSubmitting = createOfferingMutation.isPending;
+
+  if (courses.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="py-10 text-center space-y-2">
+          <Layers className="w-8 h-8 mx-auto text-slate-300" />
+          <p className="text-sm font-semibold text-slate-700">
+            No courses available
+          </p>
+          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+            Offerings are scheduled against a course. Once a course is created
+            or assigned to you, you can schedule a batch here.
+          </p>
+        </div>
+        <div className="pt-3 border-t border-slate-100 flex justify-end">
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {formError && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+          <span>{formError}</span>
+        </div>
+      )}
+
+      {/* Course */}
+      <div>
+        <label
+          htmlFor="offering-course"
+          className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+        >
+          Course *
+        </label>
+        <select
+          id="offering-course"
+          value={courseId}
+          onChange={(e) => handleCourseChange(e.target.value)}
+          disabled={isSubmitting || Boolean(initialCourseId)}
+          className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
+        >
+          {courses.map((course) => (
+            <option key={course.id} value={course.id}>
+              {course.code ? `${course.code} - ` : ""}
+              {course.title || `Course #${course.id}`}
+            </option>
+          ))}
+        </select>
+        {initialCourseId && (
+          <p className="text-[11px] text-slate-500 mt-1">
+            This offering will be scheduled for the selected course.
+          </p>
+        )}
+      </div>
+
+      {/* Batch code */}
+      <div>
+        <label
+          htmlFor="offering-batch-code"
+          className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+        >
+          Batch Code *
+        </label>
+        <input
+          id="offering-batch-code"
+          type="text"
+          required
+          maxLength={MAX_BATCH_CODE_LENGTH}
+          value={batchCode}
+          onChange={(e) => {
+            setBatchCode(e.target.value);
+            setFormError("");
+          }}
+          placeholder="e.g. CSC101-A"
+          disabled={isSubmitting}
+          className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+        />
+        <p className="text-[11px] text-slate-500 mt-1">
+          Up to {MAX_BATCH_CODE_LENGTH} characters, unique across all batches (
+          {batchCode.trim().length}/{MAX_BATCH_CODE_LENGTH}).
+        </p>
+      </div>
+
+      {/* Class date & start time */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label
+            htmlFor="offering-class-date"
+            className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+          >
+            Class Date *
+          </label>
+          <input
+            id="offering-class-date"
+            type="date"
+            required
+            value={classDate}
+            onChange={(e) => {
+              setClassDate(e.target.value);
+              setFormError("");
+            }}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="offering-start-time"
+            className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+          >
+            Start Time *
+          </label>
+          <input
+            id="offering-start-time"
+            type="time"
+            required
+            value={startTime}
+            onChange={(e) => {
+              setStartTime(e.target.value);
+              setFormError("");
+            }}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Duration & sessions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label
+            htmlFor="offering-duration"
+            className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+          >
+            Duration (minutes) *
+          </label>
+          <input
+            id="offering-duration"
+            type="number"
+            min={1}
+            step={5}
+            required
+            value={duration}
+            onChange={(e) => {
+              setDuration(e.target.value);
+              setFormError("");
+            }}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="offering-sessions"
+            className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+          >
+            Number of Sessions *
+          </label>
+          <input
+            id="offering-sessions"
+            type="number"
+            min={1}
+            step={1}
+            required
+            value={sessions}
+            onChange={(e) => {
+              setSessions(e.target.value);
+              setFormError("");
+            }}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center gap-2">
+        <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+        <span>
+          {selectedCourse?.code || "Course"} • {sessions || 0} session
+          {Number(sessions) === 1 ? "" : "s"} × {duration || 0} mins
+        </span>
+      </div>
+
+      <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={isSubmitting}
+          onClick={onClose}
+          className="cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={isSubmitting}
+          iconLeft={
+            isSubmitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )
+          }
+          className="cursor-pointer"
+        >
+          {isSubmitting ? "Scheduling..." : "Create Offering"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

@@ -597,6 +597,106 @@ func (h *Handler) UnassignOfferings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AdminCreateOfferingRequest is the payload for creating a course offering as admin.
+type AdminCreateOfferingRequest struct {
+	CourseID     uint      `json:"courseId" example:"7"`
+	InstructorID uint      `json:"instructorId" example:"12"`
+	ClassDate    time.Time `json:"classDate" example:"2026-11-02T00:00:00Z"`
+	StartTime    time.Time `json:"startTime" example:"2026-11-02T09:00:00Z"`
+	Duration     int       `json:"duration" example:"90"`
+	Sessions     int       `json:"sessions" example:"12"`
+	BatchCode    string    `json:"batchCode" example:"GO101-A"`
+}
+
+// CreateAdminOffering godoc
+// @Summary      Create a course offering (admin)
+// @Description  Creates a course offering for any course and any instructor. Admin only.
+// @Tags         students
+// @Accept       json
+// @Produce      json
+// @Param        request  body  AdminCreateOfferingRequest  true  "Offering payload"
+// @Success      201  {object}  OfferingDataResponse
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/offerings [post]
+func (h *Handler) CreateAdminOffering(w http.ResponseWriter, r *http.Request) {
+	var input AdminCreateOfferingRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	input.BatchCode = strings.TrimSpace(input.BatchCode)
+
+	switch {
+	case input.CourseID == 0:
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "courseId is required"})
+		return
+	case input.InstructorID == 0:
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "instructorId is required"})
+		return
+	case input.BatchCode == "" || len(input.BatchCode) > 10:
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "batchCode is required and must be at most 10 characters"})
+		return
+	case input.ClassDate.IsZero() || input.StartTime.IsZero():
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "classDate and startTime are required"})
+		return
+	case input.Duration <= 0:
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "duration must be greater than 0"})
+		return
+	case input.Sessions <= 0:
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "sessions must be greater than 0"})
+		return
+	}
+
+	var course models.Course
+	if err := h.DB.First(&course, input.CourseID).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Course not found"})
+		return
+	}
+
+	var instructor models.User
+	if err := h.DB.Where("role_id = ?", 2).First(&instructor, input.InstructorID).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Instructor not found"})
+		return
+	}
+
+	var existing models.CourseOffering
+	if err := h.DB.Unscoped().Where("batch_code = ?", input.BatchCode).First(&existing).Error; err == nil {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "Batch code already exists"})
+		return
+	}
+
+	offering := models.CourseOffering{
+		ClassDate:    input.ClassDate,
+		StartTime:    input.StartTime,
+		Duration:     input.Duration,
+		Sessions:     input.Sessions,
+		BatchCode:    input.BatchCode,
+		CourseID:     input.CourseID,
+		InstructorID: input.InstructorID,
+	}
+
+	if err := h.DB.Create(&offering).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if err := h.DB.Preload("Course.CreatedByUser").Preload("Instructor").First(&offering, offering.ID).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, OfferingDataResponse{
+		Message: "Request successful",
+		Data:    toOfferingResponse(offering),
+	})
+}
+
 // GetAdminOfferings godoc
 // @Summary      List all course offerings
 // @Description  Returns all course offerings with course and instructor info. Supports search by course title, code, or batch code.

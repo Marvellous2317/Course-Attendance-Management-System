@@ -36,6 +36,7 @@ import {
   getAdminDashboard,
   getAdminStudentEnrollments,
   getAdminOfferings,
+  createAdminOffering,
 } from "../api/admin";
 
 
@@ -697,6 +698,19 @@ export const useAdminOfferings = (queryParams = {}, options = {}) => {
     queryFn: () => getAdminOfferings({ search, page, perPage, ...rest }),
     placeholderData: (prev) => prev,
     ...options,
+  });
+};
+
+export const useCreateAdminOffering = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: createAdminOffering,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allOfferings });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
   });
 };
 

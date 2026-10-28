@@ -19,6 +19,7 @@ import {
   GraduationCap,
   ChevronLeft,
   ChevronRight,
+  Layers,
 } from "lucide-react";
 import { useUIStore } from "../../shared/store/useUIStore";
 import useToast from "../../shared/hooks/useToast";
@@ -33,10 +34,12 @@ import { formatCourseDate } from "../../shared/utils/date";
 // TanStack Query Hooks
 import {
   useAdminCourses,
+  useAdminTeachers,
   useDeleteCourse,
   useRestoreCourse,
   useAdminCourseStudents,
   useAdminCourseTeachers,
+  useCreateAdminOffering,
 } from "../../shared/hooks/useAdmin";
 
 // Defensive ID extractor (handles _id, id, courseId)
@@ -603,6 +606,18 @@ export default function CoursesView() {
   const [selectedCourseForStudents, setSelectedCourseForStudents] = useState(null);
   const [openMenuCourseId, setOpenMenuCourseId] = useState(null);
 
+  // Create Offering modal state
+  const [showOfferingModal, setShowOfferingModal] = useState(false);
+  const [offeringForm, setOfferingForm] = useState({
+    courseId: "",
+    instructorId: "",
+    batchCode: "",
+    classDate: "",
+    startTime: "",
+    duration: "",
+    sessions: "",
+  });
+
   // Close card menus on outside click
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -683,6 +698,58 @@ export default function CoursesView() {
     },
     onError: () => setActioningId(null),
   });
+
+  // Fetch teachers for the offering form instructor dropdown
+  const { data: teachersData } = useAdminTeachers(
+    { isDeleted: false, perPage: 100 },
+    { enabled: showOfferingModal },
+  );
+  const teachersList = useMemo(() => {
+    if (!teachersData) return [];
+    if (Array.isArray(teachersData)) return teachersData;
+    if (Array.isArray(teachersData?.data)) return teachersData.data;
+    return [];
+  }, [teachersData]);
+
+  const { mutate: createOfferingMutation, isPending: isCreatingOffering } =
+    useCreateAdminOffering({
+      onSuccess: () => {
+        showToast("Course offering created successfully", "success");
+        setShowOfferingModal(false);
+        setOfferingForm({
+          courseId: "",
+          instructorId: "",
+          batchCode: "",
+          classDate: "",
+          startTime: "",
+          duration: "",
+          sessions: "",
+        });
+      },
+      onError: (err) => {
+        showToast(
+          err?.response?.data?.error || "Failed to create offering",
+          "error",
+        );
+      },
+    });
+
+  const handleCreateOffering = () => {
+    const { courseId, instructorId, batchCode, classDate, startTime, duration, sessions } = offeringForm;
+    if (!courseId || !instructorId || !batchCode || !classDate || !startTime || !duration || !sessions) {
+      showToast("All fields are required", "error");
+      return;
+    }
+    createOfferingMutation({
+      courseId: Number(courseId),
+      instructorId: Number(instructorId),
+      batchCode,
+      classDate: new Date(classDate).toISOString(),
+      startTime: new Date(`${classDate}T${startTime}`).toISOString(),
+      duration: Number(duration),
+      sessions: Number(sessions),
+    });
+  };
 
   const handleOpenDeleteModal = (course) => setCourseToDelete(course);
   const handleCloseDeleteModal = () => !isDeleting && setCourseToDelete(null);
@@ -824,15 +891,26 @@ export default function CoursesView() {
               </div>
 
               {activeTab === "All" && (
-                <Button
-                  variant="accent"
-                  size="sm"
-                  iconLeft={<BookPlus className="w-4 h-4 text-slate-950" />}
-                  onClick={() => openModal?.("add-course")}
-                  className="shrink-0 cursor-pointer"
-                >
-                  Add New Course
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    iconLeft={<Layers className="w-4 h-4 text-indigo-600" />}
+                    onClick={() => setShowOfferingModal(true)}
+                    className="shrink-0 cursor-pointer text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                  >
+                    Create Offering
+                  </Button>
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    iconLeft={<BookPlus className="w-4 h-4 text-slate-950" />}
+                    onClick={() => openModal?.("add-course")}
+                    className="shrink-0 cursor-pointer"
+                  >
+                    Add New Course
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -998,6 +1076,141 @@ export default function CoursesView() {
               className="bg-rose-600 hover:bg-rose-700 text-white border-transparent cursor-pointer"
             >
               {isDeleting ? "Deleting..." : "Yes, Delete Course"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create Offering Modal */}
+      <Modal
+        isOpen={showOfferingModal}
+        onClose={() => !isCreatingOffering && setShowOfferingModal(false)}
+        title="Create Course Offering"
+        subtitle="Set up a new batch/offering for a course"
+      >
+        <div className="space-y-4">
+          {/* Course Select */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Course</label>
+            <select
+              value={offeringForm.courseId}
+              onChange={(e) => setOfferingForm((f) => ({ ...f, courseId: e.target.value }))}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+            >
+              <option value="">Select a course...</option>
+              {activeCourses.map((c) => (
+                <option key={getCourseId(c)} value={getCourseId(c)}>
+                  {c.code ? `${c.code} - ` : ""}{c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Instructor Select */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Instructor</label>
+            <select
+              value={offeringForm.instructorId}
+              onChange={(e) => setOfferingForm((f) => ({ ...f, instructorId: e.target.value }))}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+            >
+              <option value="">Select an instructor...</option>
+              {teachersList.map((t) => {
+                const tid = t.id ?? t.teacherId;
+                const name = `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email;
+                return (
+                  <option key={tid} value={tid}>{name}</option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Batch Code */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Batch Code</label>
+            <input
+              type="text"
+              maxLength={10}
+              placeholder="e.g. GO101-A"
+              value={offeringForm.batchCode}
+              onChange={(e) => setOfferingForm((f) => ({ ...f, batchCode: e.target.value }))}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+            />
+          </div>
+
+          {/* Class Date & Start Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Class Date</label>
+              <input
+                type="date"
+                value={offeringForm.classDate}
+                onChange={(e) => setOfferingForm((f) => ({ ...f, classDate: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Start Time</label>
+              <input
+                type="time"
+                value={offeringForm.startTime}
+                onChange={(e) => setOfferingForm((f) => ({ ...f, startTime: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Duration & Sessions */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Duration (mins)</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="90"
+                value={offeringForm.duration}
+                onChange={(e) => setOfferingForm((f) => ({ ...f, duration: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Sessions</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="12"
+                value={offeringForm.sessions}
+                onChange={(e) => setOfferingForm((f) => ({ ...f, sessions: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowOfferingModal(false)}
+              disabled={isCreatingOffering}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={handleCreateOffering}
+              disabled={isCreatingOffering}
+              iconLeft={
+                isCreatingOffering ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Layers className="w-4 h-4" />
+                )
+              }
+              className="cursor-pointer"
+            >
+              {isCreatingOffering ? "Creating..." : "Create Offering"}
             </Button>
           </div>
         </div>

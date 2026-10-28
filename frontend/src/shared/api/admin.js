@@ -210,6 +210,11 @@ export const getAdminOfferings = async ({ search = "", page = 1, perPage = 20 } 
   return response.data;
 };
 
+export const createAdminOffering = async (payload) => {
+  const response = await axiosInstance.post("/api/admin/offerings", payload);
+  return response.data;
+};
+
 export const getAdminStudentEnrollments = async (studentId, params = {}) => {
   const response = await axiosInstance.get(
     `/api/admin/students/${studentId}/enrollments`,
