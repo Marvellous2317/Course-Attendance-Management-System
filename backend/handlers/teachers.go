@@ -14,17 +14,20 @@ import (
 )
 
 // TeacherResponse is the public representation of a teacher.
+// Courses is only populated on the single-teacher endpoint; list endpoints
+// return AssignedCourseCount instead so they stay lightweight.
 type TeacherResponse struct {
-	ID        uint             `json:"id" example:"12"`
-	CreatedAt time.Time        `json:"createdAt"`
-	UpdatedAt time.Time        `json:"updatedAt"`
-	DeletedAt *time.Time       `json:"deletedAt,omitempty"`
-	FirstName string           `json:"firstName" example:"Grace"`
-	LastName  string           `json:"lastName" example:"Hopper"`
-	Email     string           `json:"email" example:"grace@example.com"`
-	RoleID    uint             `json:"roleID" example:"2"`
-	Role      models.Role      `json:"Role"`
-	Courses   []CourseResponse `json:"courses"`
+	ID                  uint             `json:"id" example:"12"`
+	CreatedAt           time.Time        `json:"createdAt"`
+	UpdatedAt           time.Time        `json:"updatedAt"`
+	DeletedAt           *time.Time       `json:"deletedAt,omitempty"`
+	FirstName           string           `json:"firstName" example:"Grace"`
+	LastName            string           `json:"lastName" example:"Hopper"`
+	Email               string           `json:"email" example:"grace@example.com"`
+	RoleID              uint             `json:"roleID" example:"2"`
+	Role                models.Role      `json:"Role"`
+	Courses             []CourseResponse `json:"courses,omitempty"`
+	AssignedCourseCount int64            `json:"assignedCourseCount" example:"3"`
 }
 
 // TeacherListResponse is returned by GetAllTeachers.
@@ -101,35 +104,89 @@ func toTeacherResponse(teacher models.User) TeacherResponse {
 		deletedAt = &teacher.DeletedAt.Time
 	}
 
-	// Assigned courses are preloaded by the list/detail handlers. Always emit an
-	// array (never null) so clients can iterate the field unconditionally.
+	// Assigned courses are preloaded by the single-teacher handler. List handlers
+	// leave the relation empty and fill AssignedCourseCount with withCourseCounts.
 	courses := make([]CourseResponse, 0, len(teacher.AssignedCourses))
 	for _, course := range teacher.AssignedCourses {
 		courses = append(courses, toCourseResponse(course))
 	}
 
 	return TeacherResponse{
-		ID:        teacher.ID,
-		CreatedAt: teacher.CreatedAt,
-		UpdatedAt: teacher.UpdatedAt,
-		DeletedAt: deletedAt,
-		FirstName: teacher.FirstName,
-		LastName:  teacher.LastName,
-		Email:     teacher.Email,
-		RoleID:    teacher.RoleID,
-		Role:      teacher.Role,
-		Courses:   courses,
+		ID:                  teacher.ID,
+		CreatedAt:           teacher.CreatedAt,
+		UpdatedAt:           teacher.UpdatedAt,
+		DeletedAt:           deletedAt,
+		FirstName:           teacher.FirstName,
+		LastName:            teacher.LastName,
+		Email:               teacher.Email,
+		RoleID:              teacher.RoleID,
+		Role:                teacher.Role,
+		Courses:             courses,
+		AssignedCourseCount: int64(len(courses)),
 	}
 }
 
-// preloadTeacherRelations adds the associations a TeacherResponse needs to a query.
+// preloadTeacherRelations adds the associations a single-teacher response needs.
 func preloadTeacherRelations(q *gorm.DB) *gorm.DB {
 	return q.Preload("Role").Preload("AssignedCourses.CreatedByUser")
 }
 
+// assignedCourseCounts returns the number of active courses assigned to each
+// teacher, in a single grouped query, so list endpoints avoid an N+1 preload.
+func (h *Handler) assignedCourseCounts(teacherIDs []uint) (map[uint]int64, error) {
+	counts := make(map[uint]int64, len(teacherIDs))
+
+	if len(teacherIDs) == 0 {
+		return counts, nil
+	}
+
+	var rows []struct {
+		UserID uint
+		Total  int64
+	}
+
+	err := h.DB.Table("course_teachers").
+		Select("course_teachers.user_id AS user_id, COUNT(*) AS total").
+		Joins("JOIN courses ON courses.id = course_teachers.course_id AND courses.deleted_at IS NULL").
+		Where("course_teachers.user_id IN ?", teacherIDs).
+		Group("course_teachers.user_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		counts[row.UserID] = row.Total
+	}
+
+	return counts, nil
+}
+
+// toTeacherListResponse converts teacher rows and fills their assignment counts.
+func (h *Handler) toTeacherListResponse(teachers []models.User) ([]TeacherResponse, error) {
+	ids := make([]uint, 0, len(teachers))
+	for _, teacher := range teachers {
+		ids = append(ids, teacher.ID)
+	}
+
+	counts, err := h.assignedCourseCounts(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]TeacherResponse, 0, len(teachers))
+	for _, teacher := range teachers {
+		item := toTeacherResponse(teacher)
+		item.AssignedCourseCount = counts[teacher.ID]
+		response = append(response, item)
+	}
+
+	return response, nil
+}
+
 // GetAllTeachers godoc
 // @Summary      List teachers
-// @Description  Returns paginated teachers (role_id 2), newest first. Set isDeleted=true to include soft-deleted teachers.
+// @Description  Returns paginated teachers (role_id 2), newest first, each with assignedCourseCount. Set isDeleted=true to include soft-deleted teachers.
 // @Tags         teachers
 // @Produce      json
 // @Param        page       query  int   false  "Page number"              default(1)
@@ -167,15 +224,17 @@ func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := preloadTeacherRelations(scope()).Order("id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+	if err := scope().Preload("Role").Order("id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
 		log.Printf("fetch teachers: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
 		return
 	}
 
-	response := make([]TeacherResponse, 0, len(teachers))
-	for _, teacher := range teachers {
-		response = append(response, toTeacherResponse(teacher))
+	response, err := h.toTeacherListResponse(teachers)
+	if err != nil {
+		log.Printf("count teacher courses: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
+		return
 	}
 
 	writeJSON(w, http.StatusOK, TeacherListResponse{
@@ -187,7 +246,7 @@ func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 
 // GetTeacher godoc
 // @Summary      Get a teacher
-// @Description  Returns a single teacher (role_id 2) by ID.
+// @Description  Returns a single teacher (role_id 2) by ID, including the courses assigned to them.
 // @Tags         teachers
 // @Produce      json
 // @Param        id  path  int  true  "Teacher ID"

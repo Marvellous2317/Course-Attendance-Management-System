@@ -34,7 +34,8 @@ import {
   enrollStudentOfferings,
   unenrollStudentOfferings,
   getAdminDashboard,
-  getAdminStudentEnrollments
+  getAdminStudentEnrollments,
+  getAdminOfferings,
 } from "../api/admin";
 
 
@@ -80,6 +81,9 @@ export const ADMIN_KEYS = {
     "adminStudentEnrollments",
     studentId,
   ],
+
+  offerings: (params = {}) => ["adminOfferings", params],
+  allOfferings: ["adminOfferings"],
 };
 
 
@@ -681,6 +685,16 @@ export const useAdminStudentEnrollments = (
     queryKey: ADMIN_KEYS.studentEnrollments(studentId, params),
     queryFn: () => getAdminStudentEnrollments(studentId, params),
     enabled: Boolean(studentId),
+    placeholderData: (prev) => prev,
+    ...options,
+  });
+};
+
+export const useAdminOfferings = (queryParams = {}, options = {}) => {
+  const { search = "", page = 1, perPage = 20, ...rest } = queryParams;
+  return useQuery({
+    queryKey: ADMIN_KEYS.offerings({ search, page, perPage, ...rest }),
+    queryFn: () => getAdminOfferings({ search, page, perPage, ...rest }),
     placeholderData: (prev) => prev,
     ...options,
   });

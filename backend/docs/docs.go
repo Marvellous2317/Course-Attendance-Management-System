@@ -406,7 +406,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the teachers who created the course, are assigned to it, or instruct one of its offerings.",
+                "description": "Returns the teachers who created the course, are assigned to it, or instruct one of its offerings, each with assignedCourseCount.",
                 "produces": [
                     "application/json"
                 ],
@@ -1289,7 +1289,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns paginated teachers (role_id 2), newest first. Set isDeleted=true to include soft-deleted teachers.",
+                "description": "Returns paginated teachers (role_id 2), newest first, each with assignedCourseCount. Set isDeleted=true to include soft-deleted teachers.",
                 "produces": [
                     "application/json"
                 ],
@@ -1397,7 +1397,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a single teacher (role_id 2) by ID.",
+                "description": "Returns a single teacher (role_id 2) by ID, including the courses assigned to them.",
                 "produces": [
                     "application/json"
                 ],
@@ -4147,6 +4147,10 @@ const docTemplate = `{
             "properties": {
                 "Role": {
                     "$ref": "#/definitions/models.Role"
+                },
+                "assignedCourseCount": {
+                    "type": "integer",
+                    "example": 3
                 },
                 "courses": {
                     "type": "array",

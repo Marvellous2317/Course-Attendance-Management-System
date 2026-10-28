@@ -191,7 +191,7 @@ func (h *Handler) GetCourse(w http.ResponseWriter, r *http.Request) {
 
 // GetCourseTeachers godoc
 // @Summary      List teachers of a course
-// @Description  Returns the teachers who created the course, are assigned to it, or instruct one of its offerings.
+// @Description  Returns the teachers who created the course, are assigned to it, or instruct one of its offerings, each with assignedCourseCount.
 // @Tags         courses
 // @Produce      json
 // @Param        id       path   int  true   "Course ID"
@@ -234,15 +234,17 @@ func (h *Handler) GetCourseTeachers(w http.ResponseWriter, r *http.Request) {
 
 	var teachers []models.User
 
-	if err := preloadTeacherRelations(scope).Order("users.id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+	if err := scope.Preload("Role").Order("users.id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
 		log.Printf("fetch course teachers: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
 		return
 	}
 
-	response := make([]TeacherResponse, 0, len(teachers))
-	for _, teacher := range teachers {
-		response = append(response, toTeacherResponse(teacher))
+	response, err := h.toTeacherListResponse(teachers)
+	if err != nil {
+		log.Printf("count course teacher courses: %v", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
+		return
 	}
 
 	writeJSON(w, http.StatusOK, CourseTeachersResponse{

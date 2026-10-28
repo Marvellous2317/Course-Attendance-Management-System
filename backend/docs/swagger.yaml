@@ -829,6 +829,9 @@ definitions:
     properties:
       Role:
         $ref: '#/definitions/models.Role'
+      assignedCourseCount:
+        example: 3
+        type: integer
       courses:
         items:
           $ref: '#/definitions/handlers.CourseResponse'
@@ -1370,7 +1373,7 @@ paths:
   /admin/courses/{id}/teachers:
     get:
       description: Returns the teachers who created the course, are assigned to it,
-        or instruct one of its offerings.
+        or instruct one of its offerings, each with assignedCourseCount.
       parameters:
       - description: Course ID
         in: path
@@ -1941,8 +1944,8 @@ paths:
       - students
   /admin/teachers:
     get:
-      description: Returns paginated teachers (role_id 2), newest first. Set isDeleted=true
-        to include soft-deleted teachers.
+      description: Returns paginated teachers (role_id 2), newest first, each with
+        assignedCourseCount. Set isDeleted=true to include soft-deleted teachers.
       parameters:
       - default: 1
         description: Page number
@@ -2042,7 +2045,8 @@ paths:
       tags:
       - teachers
     get:
-      description: Returns a single teacher (role_id 2) by ID.
+      description: Returns a single teacher (role_id 2) by ID, including the courses
+        assigned to them.
       parameters:
       - description: Teacher ID
         in: path

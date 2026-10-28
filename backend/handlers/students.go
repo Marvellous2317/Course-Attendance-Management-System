@@ -596,3 +596,61 @@ func (h *Handler) UnassignOfferings(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+// GetAdminOfferings godoc
+// @Summary      List all course offerings
+// @Description  Returns all course offerings with course and instructor info. Supports search by course title, code, or batch code.
+// @Tags         students
+// @Produce      json
+// @Param        search   query  string  false  "Search by course title, code, or batch code"
+// @Param        page     query  int     false  "Page number"              default(1)
+// @Param        perPage  query  int     false  "Items per page (max 50)"  default(20)
+// @Success      200  {object}  OfferingListResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/offerings [get]
+func (h *Handler) GetAdminOfferings(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	page, perPage, offset := parsePagination(r)
+
+	scope := func() *gorm.DB {
+		q := h.DB.Model(&models.CourseOffering{}).
+			Joins("JOIN courses ON courses.id = course_offerings.course_id AND courses.deleted_at IS NULL")
+		if search != "" {
+			like := "%" + search + "%"
+			q = q.Where("courses.title ILIKE ? OR courses.code ILIKE ? OR course_offerings.batch_code ILIKE ?", like, like, like)
+		}
+		return q
+	}
+
+	var total int64
+	if err := scope().Count(&total).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var offerings []models.CourseOffering
+	err := scope().
+		Preload("Course.CreatedByUser").
+		Preload("Instructor").
+		Order("course_offerings.id DESC").
+		Limit(perPage).
+		Offset(offset).
+		Find(&offerings).Error
+
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	response := make([]OfferingResponse, 0, len(offerings))
+	for _, offering := range offerings {
+		response = append(response, toOfferingResponse(offering))
+	}
+
+	writeJSON(w, http.StatusOK, OfferingListResponse{
+		Message: "Request successful",
+		Data:    response,
+		Meta:    newPaginationMeta(total, page, perPage),
+	})
+}

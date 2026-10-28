@@ -30,6 +30,7 @@ import { EmptyState } from "../../shared/components/EmptyState";
 // TanStack Query Hooks (All mutations and invalidations live here)
 import {
   useAdminTeachers,
+  useAdminTeacher,
   useDeleteTeacher,
   useRestoreTeacher,
   useAdminCourses,
@@ -103,6 +104,19 @@ const getTeacherCourses = (teacher, allCourses = []) => {
       title: match?.title ?? `Course #${item}`,
     };
   });
+};
+
+// Number of courses assigned to a teacher. List responses only carry
+// assignedCourseCount, so fall back to the resolved course list when absent.
+const getTeacherCourseCount = (teacher, allCourses = []) => {
+  const count =
+    teacher?.assignedCourseCount ??
+    teacher?.assignedCoursesCount ??
+    teacher?.courseCount;
+
+  if (typeof count === "number") return count;
+
+  return getTeacherCourses(teacher, allCourses).length;
 };
 
 // Safe normalizer for API list responses
@@ -197,6 +211,17 @@ export default function TeachersView() {
     isDeleted: false,
   });
 
+  const { data: teacherDetailData, isLoading: isLoadingDetail } =
+    useAdminTeacher(teacherToView);
+
+  // Teacher lists only carry assignedCourseCount, so the assign/unassign dialogs
+  // fetch the detailed record to get the actual assigned course ids.
+  const { data: assignTargetData, isLoading: isLoadingAssignTarget } =
+    useAdminTeacher(getTeacherId(teacherToAssign));
+
+  const { data: unassignTargetData, isLoading: isLoadingUnassignTarget } =
+    useAdminTeacher(getTeacherId(teacherToUnassign));
+
   const deferredAssignSearch = useDeferredValue(assignCourseSearch);
   const { data: assignCoursesData, isLoading: isLoadingAssignCourses } =
     useAdminCourses(
@@ -220,6 +245,17 @@ export default function TeachersView() {
     if (Array.isArray(src.data)) return src.data;
     return [];
   }, [assignCoursesData, coursesData]);
+
+  // Assigned courses of the teacher in each dialog, taken from the detailed record.
+  const assignTargetCourses = useMemo(
+    () => getTeacherCourses(assignTargetData?.data ?? {}, coursesList),
+    [assignTargetData, coursesList],
+  );
+
+  const unassignTargetCourses = useMemo(
+    () => getTeacherCourses(unassignTargetData?.data ?? {}, coursesList),
+    [unassignTargetData, coursesList],
+  );
 
   const activeTeachers = useMemo(
     () => normalizeTeachers(activeData),
@@ -354,9 +390,14 @@ export default function TeachersView() {
       setAssignError("Unable to resolve faculty ID.");
       return;
     }
+    if (isLoadingAssignTarget) {
+      setAssignError("Still loading this teacher's courses. Please try again.");
+      return;
+    }
 
-    const existing = getTeacherCourses(teacherToAssign, coursesList);
-    const existingIds = existing.map((c) => Number(c.id)).filter(Boolean);
+    const existingIds = assignTargetCourses
+      .map((c) => Number(c.id))
+      .filter(Boolean);
     const courseIds = Array.from(
       new Set([...existingIds, ...selectedCourseIds.map(Number)]),
     );
@@ -371,8 +412,8 @@ export default function TeachersView() {
   const handleOpenUnassignModal = (teacher) => {
     setTeacherToUnassign(teacher);
     setUnassignError("");
-    const assigned = getTeacherCourses(teacher, coursesList);
-    setUnassignCourseId(assigned.length > 0 ? String(assigned[0].id) : "");
+    // The first assigned course is preselected once the teacher record loads.
+    setUnassignCourseId("");
   };
 
   const handleConfirmUnassign = () => {
@@ -386,7 +427,7 @@ export default function TeachersView() {
       return;
     }
 
-    const assigned = getTeacherCourses(teacherToUnassign, coursesList);
+    const assigned = unassignTargetCourses;
     let courseIds = [];
 
     if (unassignCourseId === "all") {
@@ -415,11 +456,17 @@ export default function TeachersView() {
   const filteredTeachers = currentList;
 
   // Set of courses already assigned to the teacher currently being assigned to
-  const assignedCourseIds = useMemo(() => {
-    if (!teacherToAssign) return new Set();
-    const assigned = getTeacherCourses(teacherToAssign, coursesList);
-    return new Set(assigned.map((c) => String(c.id)));
-  }, [teacherToAssign, coursesList]);
+  const assignedCourseIds = useMemo(
+    () => new Set(assignTargetCourses.map((c) => String(c.id))),
+    [assignTargetCourses],
+  );
+
+  // Preselect the first assigned course in the unassign dialog once it loads.
+  useEffect(() => {
+    if (!teacherToUnassign || unassignCourseId) return;
+    const firstAssignedId = unassignTargetCourses[0]?.id;
+    if (firstAssignedId != null) setUnassignCourseId(String(firstAssignedId));
+  }, [teacherToUnassign, unassignCourseId, unassignTargetCourses]);
 
   // ---------------------------------------------------------------------------
   // Loading & Error States
@@ -593,7 +640,7 @@ export default function TeachersView() {
             const avatarSrc = getTeacherAvatar(teacher, teacherName);
             const isDel = activeTab === "Deleted";
             const isCurrentlyRestoring = restoringId === currentId;
-            const teacherCourses = getTeacherCourses(teacher, coursesList);
+            const teacherCourseCount = getTeacherCourseCount(teacher, coursesList);
 
             return (
               <ScrollReveal
@@ -602,7 +649,7 @@ export default function TeachersView() {
               >
                 <Card
                   className="p-4 h-full flex flex-col justify-between hover:border-slate-300 transition-all group relative cursor-pointer"
-                  onClick={() => setTeacherToView(teacher)}
+                  onClick={() => setTeacherToView(getTeacherId(teacher))}
                 >
                   <div className="space-y-3.5">
                     {/* Top card bar: Avatar, Name, Status & 3-dots Menu */}
@@ -664,7 +711,7 @@ export default function TeachersView() {
                                   <span>Assign Course</span>
                                 </button>
 
-                                {teacherCourses.length > 0 && (
+                                {teacherCourseCount > 0 && (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -715,8 +762,8 @@ export default function TeachersView() {
                       <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
                         <span>
-                          {teacherCourses.length}{" "}
-                          {teacherCourses.length === 1 ? "Course" : "Courses"}{" "}
+                          {teacherCourseCount}{" "}
+                          {teacherCourseCount === 1 ? "Course" : "Courses"}{" "}
                           Assigned
                         </span>
                       </span>
@@ -925,10 +972,10 @@ export default function TeachersView() {
             <Button
               type="button"
               variant="primary"
-              disabled={isAssigning}
+              disabled={isAssigning || isLoadingAssignTarget}
               onClick={handleConfirmAssign}
               iconLeft={
-                isAssigning ? (
+                isAssigning || isLoadingAssignTarget ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <BookPlus className="w-4 h-4" />
@@ -938,7 +985,9 @@ export default function TeachersView() {
             >
               {isAssigning
                 ? "Assigning..."
-                : `Assign Course${selectedCourseIds.length > 1 ? "s" : ""}`}
+                : isLoadingAssignTarget
+                  ? "Loading courses..."
+                  : `Assign Course${selectedCourseIds.length > 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>
@@ -979,33 +1028,28 @@ export default function TeachersView() {
                 setUnassignCourseId(e.target.value);
                 setUnassignError("");
               }}
-              disabled={isUnassigning}
+              disabled={isUnassigning || isLoadingUnassignTarget}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
             >
-              {(() => {
-                const assigned = getTeacherCourses(
-                  teacherToUnassign,
-                  coursesList,
-                );
-                if (assigned.length === 0) {
-                  return <option value="">No courses assigned</option>;
-                }
-                return (
-                  <>
-                    {assigned.length > 1 && (
-                      <option value="all">
-                        All Assigned Courses ({assigned.length})
-                      </option>
-                    )}
-                    {assigned.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.code ? `${course.code} - ` : ""}
-                        {course.title}
-                      </option>
-                    ))}
-                  </>
-                );
-              })()}
+              {isLoadingUnassignTarget ? (
+                <option value="">Loading assigned courses...</option>
+              ) : unassignTargetCourses.length === 0 ? (
+                <option value="">No courses assigned</option>
+              ) : (
+                <>
+                  {unassignTargetCourses.length > 1 && (
+                    <option value="all">
+                      All Assigned Courses ({unassignTargetCourses.length})
+                    </option>
+                  )}
+                  {unassignTargetCourses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.code ? `${course.code} - ` : ""}
+                      {course.title}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 
@@ -1022,7 +1066,11 @@ export default function TeachersView() {
             <Button
               type="button"
               variant="primary"
-              disabled={isUnassigning}
+              disabled={
+                isUnassigning ||
+                isLoadingUnassignTarget ||
+                unassignTargetCourses.length === 0
+              }
               onClick={handleConfirmUnassign}
               iconLeft={
                 isUnassigning ? (
@@ -1044,16 +1092,27 @@ export default function TeachersView() {
         isOpen={Boolean(teacherToView)}
         onClose={() => setTeacherToView(null)}
         title={
-          teacherToView ? getTeacherName(teacherToView) : "Faculty Details"
+          teacherDetailData?.data
+            ? getTeacherName(teacherDetailData.data)
+            : "Faculty Details"
         }
         subtitle="Faculty profile and assigned courses"
       >
-        {teacherToView &&
-          (() => {
-            const viewId = getTeacherId(teacherToView);
-            const viewName = getTeacherName(teacherToView);
-            const viewAvatar = getTeacherAvatar(teacherToView, viewName);
-            const viewCourses = getTeacherCourses(teacherToView, coursesList);
+        {teacherToView && (
+          isLoadingDetail ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+            </div>
+          ) : !teacherDetailData?.data ? (
+            <div className="py-8 text-center text-sm text-slate-400">
+              Teacher not found
+            </div>
+          ) : (() => {
+            const detail = teacherDetailData.data;
+            const viewId = getTeacherId(detail);
+            const viewName = getTeacherName(detail);
+            const viewAvatar = getTeacherAvatar(detail, viewName);
+            const viewCourses = detail.courses ?? [];
 
             return (
               <div className="space-y-5">
@@ -1076,27 +1135,27 @@ export default function TeachersView() {
 
                 {/* Info Fields */}
                 <div className="space-y-2.5 text-sm">
-                  {teacherToView.email && (
+                  {detail.email && (
                     <div className="flex items-center gap-3">
                       <Mail className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-slate-700">
-                        {teacherToView.email}
+                        {detail.email}
                       </span>
                     </div>
                   )}
-                  {teacherToView.department && (
+                  {detail.department && (
                     <div className="flex items-center gap-3">
                       <Briefcase className="w-4 h-4 text-indigo-500 shrink-0" />
                       <span className="text-slate-700 font-semibold">
-                        {teacherToView.department}
+                        {detail.department}
                       </span>
                     </div>
                   )}
-                  {teacherToView.qualification && (
+                  {detail.qualification && (
                     <div className="flex items-center gap-3">
                       <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-slate-700">
-                        {teacherToView.qualification}
+                        {detail.qualification}
                       </span>
                     </div>
                   )}
@@ -1147,7 +1206,8 @@ export default function TeachersView() {
                 </div>
               </div>
             );
-          })()}
+          })()
+        )}
       </Modal>
 
       {/* Delete Confirmation Modal */}

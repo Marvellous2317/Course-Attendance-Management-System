@@ -19,8 +19,10 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
+  BookPlus,
 } from "lucide-react";
 import { useUIStore } from "../../shared/store/useUIStore";
+import useToast from "../../shared/hooks/useToast";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -35,6 +37,8 @@ import {
   useDeleteStudent,
   useRestoreStudent,
   useAdminStudentEnrollments,
+  useEnrollStudentOfferings,
+  useAdminOfferings,
 } from "../../shared/hooks/useAdmin";
 
 // Defensive ID extractor
@@ -188,6 +192,13 @@ export default function StudentsView() {
   // State for Viewing Student's Full Enrolled Courses Modal
   const [activeStudentCourses, setActiveStudentCourses] = useState(null);
 
+  // State for Enroll Student in Offerings Modal
+  const [studentToEnroll, setStudentToEnroll] = useState(null);
+  const [selectedOfferingIds, setSelectedOfferingIds] = useState([]);
+  const [enrollSearch, setEnrollSearch] = useState("");
+
+  const { showToast } = useToast();
+
   const perPage = 20;
 
   // ---------------------------------------------------------------------------
@@ -262,6 +273,58 @@ export default function StudentsView() {
     if (!id) return;
     setRestoringId(id);
     restoreStudentMutation(id);
+  };
+
+  // ---------------------------------------------------------------------------
+  // 5. Enroll Student Mutation & Offerings Query
+  // ---------------------------------------------------------------------------
+  const deferredEnrollSearch = useDeferredValue(enrollSearch);
+  const { data: offeringsData, isLoading: isLoadingOfferings } =
+    useAdminOfferings(
+      { search: deferredEnrollSearch, perPage: 50 },
+      { enabled: Boolean(studentToEnroll) },
+    );
+  const offeringsList = useMemo(() => normalizeList(offeringsData), [offeringsData]);
+
+  const { data: enrolledData } = useAdminStudentEnrollments(
+    studentToEnroll ? getStudentId(studentToEnroll) : null,
+    { perPage: 200 },
+  );
+  const alreadyEnrolledIds = useMemo(() => {
+    const list = normalizeList(enrolledData);
+    return new Set(list.map((e) => e.id));
+  }, [enrolledData]);
+
+  const { mutate: enrollMutation, isPending: isEnrolling } =
+    useEnrollStudentOfferings({
+      onSuccess: () => {
+        showToast("Student enrolled successfully", "success");
+        setStudentToEnroll(null);
+        setSelectedOfferingIds([]);
+        setEnrollSearch("");
+      },
+      onError: (err) => {
+        showToast(
+          err?.response?.data?.error || "Failed to enroll student",
+          "error",
+        );
+      },
+    });
+
+  const handleToggleOffering = (offeringId) => {
+    setSelectedOfferingIds((prev) =>
+      prev.includes(offeringId)
+        ? prev.filter((id) => id !== offeringId)
+        : [...prev, offeringId],
+    );
+  };
+
+  const handleEnroll = () => {
+    if (!studentToEnroll || selectedOfferingIds.length === 0) return;
+    enrollMutation({
+      id: getStudentId(studentToEnroll),
+      payload: selectedOfferingIds,
+    });
   };
 
   return (
@@ -492,15 +555,30 @@ export default function StudentsView() {
                   <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
                     {activeTab === "all" ? (
                       <>
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          iconLeft={<Pencil className="w-3.5 h-3.5 text-indigo-600" />}
-                          onClick={() => openModal?.("edit-student", student)}
-                          className="text-xs font-semibold text-indigo-700 bg-indigo-50/60 hover:bg-indigo-100/80 border-indigo-200/80 cursor-pointer"
-                        >
-                          Edit Profile
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            iconLeft={<Pencil className="w-3.5 h-3.5 text-indigo-600" />}
+                            onClick={() => openModal?.("edit-student", student)}
+                            className="text-xs font-semibold text-indigo-700 bg-indigo-50/60 hover:bg-indigo-100/80 border-indigo-200/80 cursor-pointer"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            iconLeft={<BookPlus className="w-3.5 h-3.5 text-emerald-600" />}
+                            onClick={() => {
+                              setStudentToEnroll(student);
+                              setSelectedOfferingIds([]);
+                              setEnrollSearch("");
+                            }}
+                            className="text-xs font-semibold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/80 border-emerald-200/80 cursor-pointer"
+                          >
+                            Enroll
+                          </Button>
+                        </div>
 
                         <Button
                           size="xs"
@@ -539,11 +617,11 @@ export default function StudentsView() {
       )}
 
       {/* Pagination Controls */}
-      {!isLoading && !isError && currentStudents.length > 0 && (
+      {!isLoading && !isError && filteredStudents.length > 0 && (
         <Card className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">
-              Showing {currentStudents.length} of {currentMeta.totalRecords ?? 0} &middot; Page {currentPage} of {totalPages}
+              Showing {filteredStudents.length} of {currentMeta.totalRecords ?? 0} &middot; Page {currentPage} of {totalPages}
             </p>
             <div className="flex items-center gap-1.5">
               <Button
@@ -644,6 +722,140 @@ export default function StudentsView() {
               );
             })
           )}
+        </div>
+      </Modal>
+
+      {/* Enroll Student in Offerings Modal */}
+      <Modal
+        isOpen={Boolean(studentToEnroll)}
+        onClose={() => {
+          if (!isEnrolling) {
+            setStudentToEnroll(null);
+            setSelectedOfferingIds([]);
+            setEnrollSearch("");
+          }
+        }}
+        title={`Enroll ${studentToEnroll ? getStudentName(studentToEnroll) : "Student"}`}
+        subtitle="Select course offerings to enroll this student in"
+      >
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by course, code, or batch..."
+              value={enrollSearch}
+              onChange={(e) => setEnrollSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition-colors"
+            />
+          </div>
+
+          {/* Offerings list */}
+          <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+            {isLoadingOfferings ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+              </div>
+            ) : offeringsList.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400">
+                {enrollSearch ? "No offerings match your search" : "No course offerings available"}
+              </div>
+            ) : (
+              offeringsList.map((offering) => {
+                const isAlreadyEnrolled = alreadyEnrolledIds.has(offering.id);
+                const isSelected = selectedOfferingIds.includes(offering.id);
+                const course = offering.course || {};
+                const instructor = offering.instructor;
+
+                return (
+                  <label
+                    key={offering.id}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      isAlreadyEnrolled
+                        ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                        : isSelected
+                        ? "border-indigo-300 bg-indigo-50/50"
+                        : "border-slate-200 hover:border-slate-300 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected || isAlreadyEnrolled}
+                      disabled={isAlreadyEnrolled}
+                      onChange={() => !isAlreadyEnrolled && handleToggleOffering(offering.id)}
+                      className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {course.code && (
+                          <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                            {course.code}
+                          </span>
+                        )}
+                        {offering.batchCode && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {offering.batchCode}
+                          </span>
+                        )}
+                        {isAlreadyEnrolled && (
+                          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                            Enrolled
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-slate-800 mt-0.5 truncate">
+                        {course.title || "Untitled Course"}
+                      </p>
+                      {instructor && (
+                        <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {`${instructor.firstName || ""} ${instructor.lastName || ""}`.trim() || instructor.email}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <span className="text-xs text-slate-500">
+              {selectedOfferingIds.length} offering{selectedOfferingIds.length !== 1 ? "s" : ""} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setStudentToEnroll(null);
+                  setSelectedOfferingIds([]);
+                  setEnrollSearch("");
+                }}
+                disabled={isEnrolling}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleEnroll}
+                disabled={selectedOfferingIds.length === 0 || isEnrolling}
+                iconLeft={
+                  isEnrolling ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <BookPlus className="w-4 h-4" />
+                  )
+                }
+                className="cursor-pointer"
+              >
+                {isEnrolling ? "Enrolling..." : "Enroll Student"}
+              </Button>
+            </div>
+          </div>
         </div>
       </Modal>
 

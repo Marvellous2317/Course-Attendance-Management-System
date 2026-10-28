@@ -78,6 +78,7 @@ func setupRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/admin/students/{id}", chain(h.DeleteStudent, admin...))
 	mux.HandleFunc("PATCH /api/admin/students/{id}/restore", chain(h.RestoreStudent, admin...))
 	mux.HandleFunc("GET /api/admin/students/{id}/enrollments", chain(h.GetAdminStudentEnrollments, admin...))
+	mux.HandleFunc("GET /api/admin/offerings", chain(h.GetAdminOfferings, admin...))
 
 	// teacher routes (scoped to the courses and offerings the teacher owns or teaches)
 	mux.HandleFunc("POST /api/teacher/courses", chain(h.CreateTeacherCourse, instructor...))
