@@ -15,13 +15,16 @@ import {
   BookPlus,
   Plus,
 } from 'lucide-react';
+import { useUIStore } from '../../shared/store/useUIStore';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import useToast from '../../shared/hooks/useToast';
 import { useAdminDashboard } from '../../shared/hooks/useAdmin';
-import { useAdmin } from '../../context/AdminContext';
 import { StatCard } from '../../shared/components/StatCard';
 
 export default function DashboardView() {
-  const adminCtx = useAdmin?.() || {};
-  const { openModal, setActiveTab, user, showToast } = adminCtx;
+  const { openModal, setActiveTab } = useUIStore();
+  const user = useAuthStore((s) => s.user);
+  const { showToast } = useToast();
 
   // ---------------------------------------------------------------------------
   // 1. Fetch Live Backend Analytics (/api/admin/dashboard)

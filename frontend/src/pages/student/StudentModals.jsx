@@ -12,7 +12,7 @@ import {
   Upload,
   ArrowRight,
 } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import useToast from '../../shared/hooks/useToast';
 export default function StudentModals({
   selectedCourse,
   onCloseCourseModal,
@@ -27,7 +27,7 @@ export default function StudentModals({
   isTimetableMatrixOpen,
   onCloseTimetableMatrix,
 }) {
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
   const [appealCourse, setAppealCourse] = useState('MATH-240');
   const [appealReason, setAppealReason] = useState(
     'Medical clinic visit with documentation',

@@ -13,7 +13,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 
 // Context & Hooks
-import { useAdmin } from '../../context/AdminContext';
 import { useStudentDashboard } from '../../shared/hooks/useStudent';
 import { getUserProfile } from '../../shared/api/auth';
 
@@ -24,7 +23,6 @@ export default function StudentDashboardPage({
   onOpenTimetable,
   onSelectCourse,
 }) {
-  const { currentUser } = useAdmin();
 
   // ---------------------------------------------------------------------------
   // 1. Live User Profile (Fetches name from /api/profile)

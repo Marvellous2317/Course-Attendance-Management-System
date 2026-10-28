@@ -10,7 +10,8 @@ import {
   Megaphone,
   CheckCheck,
 } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../store/useUIStore';
+import { initialNotifications } from '../../data/mockData';
 import { SearchInput } from './SearchInput';
 import { Button } from './Button';
 export const Header = () => {
@@ -19,12 +20,15 @@ export const Header = () => {
     setMobileMenuOpen,
     searchQuery,
     setSearchQuery,
-    notifications,
-    markNotificationRead,
-    markAllNotificationsRead,
     openModal,
-    setAppView,
-  } = useAdmin();
+  } = useUIStore();
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const markNotificationRead = (id) =>
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  const markAllNotificationsRead = () =>
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const notifRef = useRef(null);

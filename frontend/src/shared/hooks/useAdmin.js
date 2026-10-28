@@ -16,8 +16,8 @@ import {
   updateTeacher,
   deleteTeacher,
   restoreTeacher,
-  assignCoursesToTeacher,       
-  unassignCoursesFromTeacher,   
+  assignCoursesToTeacher,
+  unassignCoursesFromTeacher,
   // Roles
   getRole,
   getRoles,

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAdmin } from '../../context/AdminContext';
 import {
   studentCoursesInitial,
   studentElectivesInitial,
@@ -16,13 +15,6 @@ import SettingsPage from '../auth/SettingsPage';
 import StudentModals from './StudentModals';
 
 export default function StudentLayout() {
-  const {
-    currentUser,
-    switchToAdmin,
-    switchToTeacher,
-    switchToStudent,
-    showToast,
-  } = useAdmin();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [courses, setCourses] = useState(studentCoursesInitial);

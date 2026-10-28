@@ -8,7 +8,8 @@ import {
   Download,
   Filter,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import useToast from "../../shared/hooks/useToast";
+import { initialInvoices } from "../../data/mockData";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -18,13 +19,22 @@ import { EmptyState } from "../../shared/components/EmptyState";
 
 
 export default function FinancesView () {
-  const {
-    invoices,
-    toggleInvoiceStatus,
-    searchQuery,
-    setSearchQuery,
-    showToast,
-  } = useAdmin();
+  const { showToast } = useToast();
+  const [invoices, setInvoices] = useState(initialInvoices);
+  const [searchQuery, setSearchQuery] = useState("");
+  const toggleInvoiceStatus = (id) => {
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === id
+          ? {
+              ...inv,
+              status: inv.status === "Paid" ? "Pending" : "Paid",
+            }
+          : inv
+      )
+    );
+    showToast("Invoice status updated", "info");
+  };
   const [selectedStatus, setSelectedStatus] = useState("All");
   const totalInvoiced = invoices.reduce((acc, inv) => acc + inv.amount, 0);
   const totalPaid = invoices

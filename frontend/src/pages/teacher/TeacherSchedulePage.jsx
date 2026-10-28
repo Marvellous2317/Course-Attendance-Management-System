@@ -18,7 +18,8 @@ import {
   Layers,
   ChevronRight,
 } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
+import useToast from '../../shared/hooks/useToast';
 
 // Live TanStack Query Hooks
 import {
@@ -107,8 +108,8 @@ const getRelativeCountdown = (startIso) => {
 // ==============================================================================
 
 export default function TeacherSchedulePage() {
-  const adminContext = useAdmin?.() || {};
-  const { setIsAttendanceModalOpen, showToast = () => {} } = adminContext;
+  const { setIsAttendanceModalOpen } = useUIStore();
+  const { showToast } = useToast();
 
   // View States
   const [scheduleView, setScheduleView] = useState('agenda'); // 'agenda' | 'grid'

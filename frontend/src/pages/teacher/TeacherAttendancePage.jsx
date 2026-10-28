@@ -14,7 +14,7 @@ import {
   Calendar,
   GraduationCap,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import useToast from "../../shared/hooks/useToast";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
 
 // Live TanStack Query Hooks
@@ -27,8 +27,7 @@ import {
 } from "../../shared/hooks/useTeacher";
 
 export default function TeacherAttendancePage() {
-  const adminContext = useAdmin?.() || {};
-  const { showToast } = adminContext;
+  const { showToast } = useToast();
 
   const [selectedOfferingId, setSelectedOfferingId] = useState("");
   const [selectedSessionId, setSelectedSessionId] = useState("");

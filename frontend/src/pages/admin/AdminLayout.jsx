@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
 import { Sidebar } from "../../shared/components/Sidebar";
 import { Header } from "../../shared/components/Header";
 import DashboardView  from "./DashboardView";
@@ -7,7 +7,7 @@ import StudentsView  from "./StudentsView";
 import TeachersView  from "./TeachersView";
 import CoursesView from "./CoursesView";
 import SchedulesView  from "./SchedulesView";
-import FinancesView  from "./FinancesView";
+import FinancesView  from "./FinancesView";  
 import AnnouncementsView  from "./AnnouncementsView";
 // import RolesView from "./RolesView";
 import SettingsPage from "../auth/SettingsPage";
@@ -15,7 +15,7 @@ import AdminModals from "./AdminModals";
 
 
 export default function AdminLayout () {
-  const { activeTab } = useAdmin();
+  const activeTab = useUIStore((state) => state.activeTab);
   const renderActiveView = () => {
     switch (activeTab) {
       case "dashboard":

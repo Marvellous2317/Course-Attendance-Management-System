@@ -23,13 +23,13 @@ import {
   useStudentEnrollments,
   useDropOffering,
 } from '../../shared/hooks/useStudent';
-import { useAdmin } from '../../context/AdminContext';
+import useToast from '../../shared/hooks/useToast';
 
 export default function StudentCoursesPage({
   onSelectCourse,
   onNavigateTab,
 }) {
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [courseToDrop, setCourseToDrop] = useState(null);

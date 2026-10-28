@@ -8,19 +8,32 @@ import {
   CheckCircle2,
   Search,
 } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
+import useToast from '../../shared/hooks/useToast';
+import { initialAttendanceRecords } from '../../data/mockData';
 export default function TeacherModals() {
   const {
     isAttendanceModalOpen,
     setIsAttendanceModalOpen,
     isNewCourseModalOpen,
     setIsNewCourseModalOpen,
-    attendanceRecords,
-    updateAttendanceStatus,
-    markAllPresent,
-    addTeacherCourse,
-    showToast,
-  } = useAdmin();
+  } = useUIStore();
+  const { showToast } = useToast();
+  const [attendanceRecords, setAttendanceRecords] = useState(initialAttendanceRecords);
+  const updateAttendanceStatus = (id, status) => {
+    setAttendanceRecords((prev) =>
+      prev.map((rec) => (rec.id === id ? { ...rec, status } : rec))
+    );
+  };
+  const markAllPresent = () => {
+    setAttendanceRecords((prev) =>
+      prev.map((rec) => ({ ...rec, status: 'PRESENT' }))
+    );
+    showToast('Marked all students as Present', 'success');
+  };
+  const addTeacherCourse = () => {
+    showToast('Course provisioned successfully', 'success');
+  };
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchStudent, setSearchStudent] = useState('');
   const [courseCode, setCourseCode] = useState('CS-520');

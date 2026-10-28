@@ -14,14 +14,11 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useAdmin } from "../context/AdminContext";
 import { OthelloLogo } from "../shared/components/OthelloLogo";
 import { ScrollReveal } from "../shared/components/ScrollReveal";
 import Images from "../../public/images/images";
 
 export default function LandingPage() {
-  const { setAppView, login, switchToAdmin, switchToTeacher, switchToStudent } =
-    useAdmin();
 
   const navigate = useNavigate();
   const registrationPage = () => navigate("/register");

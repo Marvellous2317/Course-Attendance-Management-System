@@ -1,8 +1,7 @@
 import { Search, Bell, Menu, ShieldCheck } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
 export default function TeacherHeader() {
-  const { setMobileMenuOpen, searchQuery, setSearchQuery, showToast } =
-    useAdmin();
+  const { setMobileMenuOpen, searchQuery, setSearchQuery } = useUIStore();
   return (
     <header className="h-18 bg-white border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-6 flex items-center justify-between gap-4">
       {/* Mobile Toggle & Search */}

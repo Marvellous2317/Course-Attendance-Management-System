@@ -16,7 +16,8 @@ import {
   BookPlus,
   BookMinus,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
+import useToast from "../../shared/hooks/useToast";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -103,13 +104,13 @@ const normalizeTeachers = (data) => {
 };
 
 export default function TeachersView() {
-  const adminContext = useAdmin?.() || {};
-  const { openModal, showToast } = adminContext;
+  const { openModal } = useUIStore();
+  const { showToast } = useToast();
 
   // Search query state
   const [localSearch, setLocalSearch] = useState("");
-  const searchQuery = adminContext.searchQuery ?? localSearch;
-  const setSearchQuery = adminContext.setSearchQuery ?? setLocalSearch;
+  const searchQuery = localSearch;
+  const setSearchQuery = setLocalSearch;
 
   // Filter tabs: "All" (Active) | "Deleted" (Soft-Deleted)
   const [activeTab, setActiveTab] = useState("All");

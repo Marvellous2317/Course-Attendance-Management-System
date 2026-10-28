@@ -13,7 +13,7 @@ import {
   ChevronsRight,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
 import { useAuthStore } from '../../shared/store/useAuthStore';
 import { getUserProfile } from '../../shared/api/auth';
 
@@ -37,9 +37,8 @@ export default function TeacherSidebar() {
     toggleSidebar,
     mobileMenuOpen,
     setMobileMenuOpen,
-    currentUser,
-    logout,
-  } = useAdmin();
+  } = useUIStore();
+  const logout = useAuthStore((s) => s.clearSession);
 
   // ---------------------------------------------------------------------------
   // Profile Data & API Consumption

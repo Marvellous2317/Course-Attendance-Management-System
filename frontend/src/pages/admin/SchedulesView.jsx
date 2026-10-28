@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Users, DoorOpen, Plus } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import useToast from "../../shared/hooks/useToast";
+import { initialSchedules } from "../../data/mockData";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
@@ -8,7 +9,8 @@ import { EmptyState } from "../../shared/components/EmptyState";
 
 
 export default function SchedulesView () {
-  const { schedules, showToast } = useAdmin();
+  const { showToast } = useToast();
+  const schedules = initialSchedules;
   const [activeDay, setActiveDay] = useState("Monday");
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const daySchedules = schedules.filter((s) => s.day === activeDay);

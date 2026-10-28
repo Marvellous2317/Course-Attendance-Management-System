@@ -10,7 +10,7 @@ import {
   ArrowLeft,
   User,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import useToast from "../../shared/hooks/useToast";
 import Images from "../../../public/images/images";
 import { register as registerApi } from "../../shared/api/auth";
 
@@ -18,7 +18,7 @@ const currentYear = new Date().getFullYear();
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
 
   // Form states
   const [firstName, setFirstName] = useState("");

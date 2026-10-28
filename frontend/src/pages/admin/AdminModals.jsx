@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Clock, History, Lock, ShieldCheck, Loader2, User } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
 import { Modal } from "../../shared/components/Modal";
 import { Button } from "../../shared/components/Button";
 import { formatCourseDate } from "../../shared/utils/date";
@@ -49,8 +49,7 @@ export default function AdminModals() {
     activeModal,
     closeModal,
     modalData,
-    addAnnouncement,
-  } = useAdmin();
+  } = useUIStore();
 
   // ---------------------------------------------------------------------------
   // Student Hooks & State (Create & Edit)

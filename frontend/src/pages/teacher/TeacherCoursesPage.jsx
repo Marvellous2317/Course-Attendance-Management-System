@@ -19,7 +19,8 @@ import {
   X,
   Layers,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
+import useToast from "../../shared/hooks/useToast";
 import { ScrollReveal } from "../../shared/components/ScrollReveal";
 import { Modal } from "../../shared/components/Modal";
 import { Button } from "../../shared/components/Button";
@@ -429,8 +430,8 @@ function CourseStudentsRosterModal({ target, onClose }) {
 // Main TeacherCoursesPage Component
 // =============================================================================
 export default function TeacherCoursesPage() {
-  const { setIsNewCourseModalOpen, setIsAttendanceModalOpen, showToast } =
-    useAdmin();
+  const { setIsNewCourseModalOpen, setIsAttendanceModalOpen } = useUIStore();
+  const { showToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);

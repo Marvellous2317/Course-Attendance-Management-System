@@ -14,7 +14,9 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import useToast from '../../shared/hooks/useToast';
 import { ScrollReveal } from '../../shared/components/ScrollReveal';
 
 // Live TanStack Query Hooks
@@ -24,15 +26,10 @@ import {
 } from '../../shared/hooks/useTeacher';
 
 export default function TeacherDashboardPage() {
-  const adminContext = useAdmin?.() || {};
-  const {
-    setTeacherTab,
-    setIsAttendanceModalOpen,
-    setIsNewCourseModalOpen,
-    teacherCourses = [],
-    user,
-    showToast,
-  } = adminContext;
+  const { setTeacherTab, setIsAttendanceModalOpen, setIsNewCourseModalOpen } = useUIStore();
+  const user = useAuthStore((state) => state.user);
+  const { showToast } = useToast();
+  const teacherCourses = [];
 
   // ---------------------------------------------------------------------------
   // 1. Fetch Live Teacher Dashboard Analytics (/api/teacher/dashboard)

@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { OthelloLogo } from '../../shared/components/OthelloLogo';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
 import { useAuthStore } from '../../shared/store/useAuthStore';
+import useToast from '../../shared/hooks/useToast';
 import { getUserProfile } from '../../shared/api/auth';
 
 // Helper to format role names ({ id: 3, name: "student" } -> "Student")
@@ -36,10 +37,11 @@ export default function StudentSidebar({
   mobileOpen,
   setMobileOpen,
 }) {
-  const adminCtx = useAdmin() || {};
-  const { logout, showToast, sidebarCollapsed, toggleSidebar, currentUser } = adminCtx;
-  const isMobileOpen = mobileOpen !== undefined ? mobileOpen : adminCtx.mobileMenuOpen;
-  const setIsMobileOpen = setMobileOpen || adminCtx.setMobileMenuOpen;
+  const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen } = useUIStore();
+  const logout = useAuthStore((s) => s.clearSession);
+  const { showToast } = useToast();
+  const isMobileOpen = mobileOpen !== undefined ? mobileOpen : mobileMenuOpen;
+  const setIsMobileOpen = setMobileOpen || setMobileMenuOpen;
 
   // ---------------------------------------------------------------------------
   // Profile Data & API Consumption

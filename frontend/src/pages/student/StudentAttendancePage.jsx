@@ -22,10 +22,10 @@ import {
   useStudentAttendance,
   useExportStudentAttendance,
 } from '../../shared/hooks/useStudent';
-import { useAdmin } from '../../context/AdminContext';
+import useToast from '../../shared/hooks/useToast';
 
 export default function StudentAttendancePage({ onNavigateTab }) {
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('all');

@@ -21,7 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAdmin } from "../../context/AdminContext";
+import useToast from "../../shared/hooks/useToast";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -166,7 +166,7 @@ const getRoleTheme = (role) => {
 
 export default function RolesView() {
   const queryClient = useQueryClient();
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
 
   // Tab State: "All" (Active Roles) | "Deleted" (Soft-Deleted Roles)
   const [activeTab, setActiveTab] = useState("All");

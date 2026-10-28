@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pin, Calendar, Filter, Plus } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
+import { initialAnnouncements } from "../../data/mockData";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -8,7 +9,8 @@ import { ScrollReveal } from "../../shared/components/ScrollReveal";
 
 
 export default function AnnouncementsView () {
-  const { announcements, openModal } = useAdmin();
+  const { openModal } = useUIStore();
+  const announcements = initialAnnouncements;
   const [selectedAudience, setSelectedAudience] = useState("All");
   const filteredAnnouncements = announcements.filter((anc) => {
     return (

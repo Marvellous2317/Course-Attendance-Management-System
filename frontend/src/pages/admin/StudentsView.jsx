@@ -19,7 +19,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { useAdmin } from "../../context/AdminContext";
+import { useUIStore } from "../../shared/store/useUIStore";
 import { Card } from "../../shared/components/Card";
 import { Button } from "../../shared/components/Button";
 import { Badge } from "../../shared/components/Badge";
@@ -157,13 +157,12 @@ function StudentEnrolledCourses({ studentId, onViewAll }) {
 // Main Students View
 // ==============================================================================
 export default function StudentsView() {
-  const adminContext = useAdmin?.() || {};
-  const { openModal } = adminContext;
+  const { openModal } = useUIStore();
 
   // Search query support
   const [localSearch, setLocalSearch] = useState("");
-  const searchQuery = adminContext.searchQuery ?? localSearch;
-  const setSearchQuery = adminContext.setSearchQuery ?? setLocalSearch;
+  const searchQuery = localSearch;
+  const setSearchQuery = setLocalSearch;
 
   // Tabs: "all" (Active) or "deleted" (Soft-Deleted)
   const [activeTab, setActiveTab] = useState("all");

@@ -22,10 +22,10 @@ import {
   useStudentEnrollments,
   useEnrollOfferings,
 } from '../../shared/hooks/useStudent';
-import { useAdmin } from '../../context/AdminContext';
+import useToast from '../../shared/hooks/useToast';
 
 export default function StudentEnrollmentPage({ onNavigateTab }) {
-  const { showToast } = useAdmin();
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [enrollingOfferingId, setEnrollingOfferingId] = useState(null);

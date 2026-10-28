@@ -14,7 +14,7 @@ import {
   User,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../../shared/store/useAuthStore';
 import { getUserProfile } from '../../shared/api/auth';
 
@@ -35,10 +35,10 @@ export const Sidebar = () => {
     toggleSidebar,
     mobileMenuOpen,
     setMobileMenuOpen,
-    invoices = [],
-    announcements = [],
-    logout,
-  } = useAdmin();
+  } = useUIStore();
+  const invoices = [];
+  const announcements = [];
+  const logout = useAuthStore((state) => state.clearSession);
 
   // ---------------------------------------------------------------------------
   // Profile Data & API Consumption

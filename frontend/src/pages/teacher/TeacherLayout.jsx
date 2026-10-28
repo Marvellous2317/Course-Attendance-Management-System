@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useAdmin } from '../../context/AdminContext';
+import { useUIStore } from '../../shared/store/useUIStore';
 import TeacherSidebar from './TeacherSidebar';
 import TeacherHeader from './TeacherHeader';
 import TeacherDashboardPage from './TeacherDashboardPage';
@@ -10,7 +10,7 @@ import SettingsPage from '../auth/SettingsPage';
 import TeacherModals from './TeacherModals';
 
 export default function TeacherLayout() {
-  const { teacherTab } = useAdmin();
+  const teacherTab = useUIStore((state) => state.teacherTab);
   const renderActiveTab = () => {
     switch (teacherTab) {
       case 'dashboard':
