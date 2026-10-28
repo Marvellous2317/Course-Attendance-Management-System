@@ -539,34 +539,36 @@ export default function StudentsView() {
       )}
 
       {/* Pagination Controls */}
-      {!isLoading && !isError && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-xs text-slate-500">
-            Page {currentPage} of {totalPages} ({currentMeta.totalRecords ?? 0} total)
-          </p>
-          <div className="flex items-center gap-1.5">
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
-              className="cursor-pointer"
-            >
-              Previous
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
-              className="cursor-pointer"
-            >
-              Next
-            </Button>
+      {!isLoading && !isError && currentStudents.length > 0 && (
+        <Card className="p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              Showing {currentStudents.length} of {currentMeta.totalRecords ?? 0} &middot; Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
+                className="cursor-pointer"
+              >
+                Previous
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
+                className="cursor-pointer"
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Full Enrolled Courses Details Modal */}

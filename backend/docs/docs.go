@@ -3819,6 +3819,9 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -4133,6 +4136,9 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -4141,6 +4147,12 @@ const docTemplate = `{
             "properties": {
                 "Role": {
                     "$ref": "#/definitions/models.Role"
+                },
+                "courses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CourseResponse"
+                    }
                 },
                 "createdAt": {
                     "type": "string"

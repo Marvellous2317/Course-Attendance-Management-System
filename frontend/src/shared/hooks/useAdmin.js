@@ -470,6 +470,44 @@ export const useRestoreStudent = (options = {}) => {
   });
 };
 
+// Resolves the course IDs touched by an assign/unassign mutation, whichever
+// shape the caller used ({ courseIds } or { payload: { courseIds } }).
+const getMutationCourseIds = (variables = {}) => {
+  const raw = variables.payload?.courseIds ?? variables.courseIds ?? [];
+  if (!Array.isArray(raw)) return [];
+  return Array.from(new Set(raw.map(Number).filter(Boolean)));
+};
+
+// Invalidate every cached query that depends on teacher↔course assignments:
+// the teacher lists (active, deleted, every page/search), the single teacher,
+// and the teacher roster of each affected course.
+const invalidateTeacherAssignmentQueries = (
+  queryClient,
+  { teacherId, courseIds = [] } = {},
+) => {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allTeachers }),
+  ];
+
+  if (teacherId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: ADMIN_KEYS.teacher(teacherId),
+      }),
+    );
+  }
+
+  courseIds.forEach((courseId) => {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: ADMIN_KEYS.allCourseTeachers(courseId),
+      }),
+    );
+  });
+
+  return Promise.all(invalidations);
+};
+
 export const useAssignCoursesToTeacher = (options = {}) => {
   const queryClient = useQueryClient();
   const { onSuccess, ...restOptions } = options;
@@ -481,11 +519,13 @@ export const useAssignCoursesToTeacher = (options = {}) => {
     },
     onSuccess: (data, variables, context) => {
       const targetId = variables.teacherId ?? variables.id;
-      // Invalidate teacher list & the specific teacher query
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allTeachers });
-      if (targetId) {
-        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(targetId) });
-      }
+
+      // Refresh teacher lists/records and the affected courses' teacher rosters.
+      invalidateTeacherAssignmentQueries(queryClient, {
+        teacherId: targetId,
+        courseIds: getMutationCourseIds(variables),
+      });
+
       onSuccess?.(data, variables, context);
     },
     ...restOptions,
@@ -505,11 +545,13 @@ export const useUnassignCoursesFromTeacher = (options = {}) => {
     },
     onSuccess: (data, variables, context) => {
       const targetId = variables.teacherId ?? variables.id;
-      // Invalidate teacher list & the specific teacher query
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allTeachers });
-      if (targetId) {
-        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.teacher(targetId) });
-      }
+
+      // Refresh teacher lists/records and the affected courses' teacher rosters.
+      invalidateTeacherAssignmentQueries(queryClient, {
+        teacherId: targetId,
+        courseIds: getMutationCourseIds(variables),
+      });
+
       onSuccess?.(data, variables, context);
     },
     ...restOptions,

@@ -3816,6 +3816,9 @@
                 "message": {
                     "type": "string",
                     "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -4130,6 +4133,9 @@
                 "message": {
                     "type": "string",
                     "example": "Request successful"
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.PaginationMeta"
                 }
             }
         },
@@ -4138,6 +4144,12 @@
             "properties": {
                 "Role": {
                     "$ref": "#/definitions/models.Role"
+                },
+                "courses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CourseResponse"
+                    }
                 },
                 "createdAt": {
                     "type": "string"

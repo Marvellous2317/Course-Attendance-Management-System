@@ -604,6 +604,8 @@ definitions:
       message:
         example: Request successful
         type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
     type: object
   handlers.RoleResponse:
     properties:
@@ -820,11 +822,17 @@ definitions:
       message:
         example: Request successful
         type: string
+      meta:
+        $ref: '#/definitions/handlers.PaginationMeta'
     type: object
   handlers.TeacherResponse:
     properties:
       Role:
         $ref: '#/definitions/models.Role'
+      courses:
+        items:
+          $ref: '#/definitions/handlers.CourseResponse'
+        type: array
       createdAt:
         type: string
       deletedAt:

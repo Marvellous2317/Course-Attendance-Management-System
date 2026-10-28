@@ -15,15 +15,16 @@ import (
 
 // TeacherResponse is the public representation of a teacher.
 type TeacherResponse struct {
-	ID        uint        `json:"id" example:"12"`
-	CreatedAt time.Time   `json:"createdAt"`
-	UpdatedAt time.Time   `json:"updatedAt"`
-	DeletedAt *time.Time  `json:"deletedAt,omitempty"`
-	FirstName string      `json:"firstName" example:"Grace"`
-	LastName  string      `json:"lastName" example:"Hopper"`
-	Email     string      `json:"email" example:"grace@example.com"`
-	RoleID    uint        `json:"roleID" example:"2"`
-	Role      models.Role `json:"Role"`
+	ID        uint             `json:"id" example:"12"`
+	CreatedAt time.Time        `json:"createdAt"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+	DeletedAt *time.Time       `json:"deletedAt,omitempty"`
+	FirstName string           `json:"firstName" example:"Grace"`
+	LastName  string           `json:"lastName" example:"Hopper"`
+	Email     string           `json:"email" example:"grace@example.com"`
+	RoleID    uint             `json:"roleID" example:"2"`
+	Role      models.Role      `json:"Role"`
+	Courses   []CourseResponse `json:"courses"`
 }
 
 // TeacherListResponse is returned by GetAllTeachers.
@@ -83,10 +84,28 @@ type CourseAssignmentResponse struct {
 	Data    CourseAssignmentData `json:"data"`
 }
 
+// isInstructorRoleName reports whether a role name grants teacher-level access.
+// Mirrors IsInstructorMiddleware, which accepts both "instructor" and "teacher".
+func isInstructorRoleName(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "instructor", "teacher":
+		return true
+	}
+
+	return false
+}
+
 func toTeacherResponse(teacher models.User) TeacherResponse {
 	var deletedAt *time.Time
 	if teacher.DeletedAt.Valid {
 		deletedAt = &teacher.DeletedAt.Time
+	}
+
+	// Assigned courses are preloaded by the list/detail handlers. Always emit an
+	// array (never null) so clients can iterate the field unconditionally.
+	courses := make([]CourseResponse, 0, len(teacher.AssignedCourses))
+	for _, course := range teacher.AssignedCourses {
+		courses = append(courses, toCourseResponse(course))
 	}
 
 	return TeacherResponse{
@@ -99,7 +118,13 @@ func toTeacherResponse(teacher models.User) TeacherResponse {
 		Email:     teacher.Email,
 		RoleID:    teacher.RoleID,
 		Role:      teacher.Role,
+		Courses:   courses,
 	}
+}
+
+// preloadTeacherRelations adds the associations a TeacherResponse needs to a query.
+func preloadTeacherRelations(q *gorm.DB) *gorm.DB {
+	return q.Preload("Role").Preload("AssignedCourses.CreatedByUser")
 }
 
 // GetAllTeachers godoc
@@ -142,7 +167,7 @@ func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := scope().Preload("Role").Order("id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+	if err := preloadTeacherRelations(scope()).Order("id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
 		log.Printf("fetch teachers: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
 		return
@@ -182,7 +207,7 @@ func (h *Handler) GetTeacher(w http.ResponseWriter, r *http.Request) {
 
 	var teacher models.User
 
-	result := h.DB.Preload("Role").Where("role_id = ?", 2).First(&teacher, id)
+	result := preloadTeacherRelations(h.DB).Where("role_id = ?", 2).First(&teacher, id)
 
 	if result.Error != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Teacher not found"})
@@ -432,7 +457,7 @@ func (h *Handler) AssignCourses(w http.ResponseWriter, r *http.Request) {
 
 	result := h.DB.Preload("Role").First(&existingTeacher, id)
 
-	if result.Error != nil || existingTeacher.Role.Name != "instructor" {
+	if result.Error != nil || !isInstructorRoleName(existingTeacher.Role.Name) {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Teacher not found"})
 		return
 	}
@@ -519,7 +544,7 @@ func (h *Handler) UnassignCourses(w http.ResponseWriter, r *http.Request) {
 
 	result := h.DB.Preload("Role").First(&existingTeacher, id)
 
-	if result.Error != nil || existingTeacher.Role.Name != "instructor" {
+	if result.Error != nil || !isInstructorRoleName(existingTeacher.Role.Name) {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Teacher not found"})
 		return
 	}

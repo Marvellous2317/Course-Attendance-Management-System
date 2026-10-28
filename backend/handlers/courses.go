@@ -234,7 +234,7 @@ func (h *Handler) GetCourseTeachers(w http.ResponseWriter, r *http.Request) {
 
 	var teachers []models.User
 
-	if err := scope.Preload("Role").Order("users.id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
+	if err := preloadTeacherRelations(scope).Order("users.id DESC").Limit(perPage).Offset(offset).Find(&teachers).Error; err != nil {
 		log.Printf("fetch course teachers: %v", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch teachers"})
 		return
