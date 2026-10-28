@@ -109,6 +109,7 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 	var courses []models.Course
 
 	showDeleted, _ := strconv.ParseBool(r.URL.Query().Get("isDeleted"))
+	search := r.URL.Query().Get("search")
 
 	page, perPage, offset := parsePagination(r)
 
@@ -118,6 +119,10 @@ func (h *Handler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
 		q := h.DB.Model(&models.Course{})
 		if showDeleted {
 			q = q.Unscoped()
+		}
+		if search != "" {
+			like := "%" + search + "%"
+			q = q.Where("title ILIKE ? OR code ILIKE ?", like, like)
 		}
 		return q
 	}

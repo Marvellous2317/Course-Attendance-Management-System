@@ -18,6 +18,7 @@ import { useUIStore } from '../../shared/store/useUIStore';
 import { useAuthStore } from '../../shared/store/useAuthStore';
 import useToast from '../../shared/hooks/useToast';
 import { getUserProfile } from '../../shared/api/auth';
+import useAuth from '../../shared/hooks/useAuth';
 
 // Helper to format role names ({ id: 3, name: "student" } -> "Student")
 const formatRole = (r) => {
@@ -38,7 +39,7 @@ export default function StudentSidebar({
   setMobileOpen,
 }) {
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen } = useUIStore();
-  const logout = useAuthStore((s) => s.clearSession);
+  
   const { showToast } = useToast();
   const isMobileOpen = mobileOpen !== undefined ? mobileOpen : mobileMenuOpen;
   const setIsMobileOpen = setMobileOpen || setMobileMenuOpen;
@@ -47,6 +48,12 @@ export default function StudentSidebar({
   // Profile Data & API Consumption
   // ---------------------------------------------------------------------------
   const { user, setUser } = useAuthStore();
+  
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout(); // Calls clearSession(), queryClient.clear(), and navigates to /login
+  };
 
   const { data: profileResponse } = useQuery({
     queryKey: ['userProfile'],
@@ -290,7 +297,7 @@ export default function StudentSidebar({
           {!sidebarCollapsed && (
             <button
               type="button"
-              onClick={logout}
+              onClick={handleLogout}
               className="p-1.5 rounded-lg text-purple-300 hover:text-rose-300 hover:bg-white/10 transition-colors cursor-pointer"
               title="Sign Out"
             >

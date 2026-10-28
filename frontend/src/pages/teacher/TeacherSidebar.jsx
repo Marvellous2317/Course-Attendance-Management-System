@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -11,22 +11,23 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
-} from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useUIStore } from '../../shared/store/useUIStore';
-import { useAuthStore } from '../../shared/store/useAuthStore';
-import { getUserProfile } from '../../shared/api/auth';
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useUIStore } from "../../shared/store/useUIStore";
+import { useAuthStore } from "../../shared/store/useAuthStore";
+import { getUserProfile } from "../../shared/api/auth";
+import useAuth from "../../shared/hooks/useAuth";
 
 // Helper to format role names ({ id: 2, name: "teacher" } -> "Teacher")
 const formatRole = (r) => {
-  const raw = typeof r === 'object' ? r?.name : r;
-  if (!raw) return 'Teacher';
-  if (typeof raw === 'string') {
-    return raw.toLowerCase() === 'admin'
-      ? 'Super Admin'
+  const raw = typeof r === "object" ? r?.name : r;
+  if (!raw) return "Teacher";
+  if (typeof raw === "string") {
+    return raw.toLowerCase() === "admin"
+      ? "Super Admin"
       : raw.charAt(0).toUpperCase() + raw.slice(1);
   }
-  return 'Teacher';
+  return "Teacher";
 };
 
 export default function TeacherSidebar() {
@@ -38,7 +39,12 @@ export default function TeacherSidebar() {
     mobileMenuOpen,
     setMobileMenuOpen,
   } = useUIStore();
-  const logout = useAuthStore((s) => s.clearSession);
+  
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout(); // Calls clearSession(), queryClient.clear(), and navigates to /login
+  };
 
   // ---------------------------------------------------------------------------
   // Profile Data & API Consumption
@@ -46,7 +52,7 @@ export default function TeacherSidebar() {
   const { user, setUser } = useAuthStore();
 
   const { data: profileResponse } = useQuery({
-    queryKey: ['userProfile'],
+    queryKey: ["userProfile"],
     queryFn: getUserProfile,
     staleTime: 1000 * 60 * 5, // keep fresh for 5 minutes
   });
@@ -54,7 +60,7 @@ export default function TeacherSidebar() {
   // Sync latest server profile into Zustand store
   useEffect(() => {
     const profile = profileResponse?.data || profileResponse;
-    if (profile && typeof profile === 'object') {
+    if (profile && typeof profile === "object") {
       setUser({
         ...user,
         ...profile,
@@ -64,33 +70,36 @@ export default function TeacherSidebar() {
   }, [profileResponse]);
 
   // Resolve current active profile values
-  const currentProfile = profileResponse?.data || profileResponse || user || currentUser;
+  const currentProfile =
+    profileResponse?.data || profileResponse || user || currentUser;
   const firstName =
     currentProfile?.firstName ||
-    (currentProfile?.name ? currentProfile.name.split(' ')[0] : '');
+    (currentProfile?.name ? currentProfile.name.split(" ")[0] : "");
   const lastName =
     currentProfile?.lastName ||
     (currentProfile?.name
-      ? currentProfile.name.split(' ').slice(1).join(' ')
-      : '');
+      ? currentProfile.name.split(" ").slice(1).join(" ")
+      : "");
   const fullName =
-    `${firstName} ${lastName}`.trim() || currentProfile?.name || 'Faculty Member';
+    `${firstName} ${lastName}`.trim() ||
+    currentProfile?.name ||
+    "Faculty Member";
   const displayRole = formatRole(currentProfile?.role);
   const initial = firstName
     ? firstName.charAt(0).toUpperCase()
     : fullName
-    ? fullName.charAt(0).toUpperCase()
-    : '';
+      ? fullName.charAt(0).toUpperCase()
+      : "";
 
   // Close mobile drawer on Escape key press
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && mobileMenuOpen) {
+      if (e.key === "Escape" && mobileMenuOpen) {
         setMobileMenuOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobileMenuOpen, setMobileMenuOpen]);
 
   // Close mobile drawer if resized to desktop breakpoint
@@ -100,33 +109,33 @@ export default function TeacherSidebar() {
         setMobileMenuOpen(false);
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [mobileMenuOpen, setMobileMenuOpen]);
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'courses', label: 'Courses', icon: BookOpen },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "courses", label: "Courses", icon: BookOpen },
     {
-      id: 'attendance',
-      label: 'Attendance',
+      id: "attendance",
+      label: "Attendance",
       icon: CalendarCheck,
-      badge: 'Live',
+      badge: "Live",
     },
-    { id: 'schedule', label: 'Class Schedule', icon: CalendarDays },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: "schedule", label: "Class Schedule", icon: CalendarDays },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   const navContent = (
@@ -159,25 +168,24 @@ export default function TeacherSidebar() {
 
         {/* Desktop Collapse Toggle */}
         <div
-          className={`hidden lg:block right-3 absolute ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
+          className={`hidden lg:block right-3 absolute ${sidebarCollapsed ? "justify-center px-2" : ""}`}
         >
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.92 }}
             onClick={toggleSidebar}
             className="p-1.5 rounded-lg text-purple-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <motion.div
               animate={{ rotate: sidebarCollapsed ? 180 : 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
               <ChevronLeft className="w-4 h-4" />
             </motion.div>
           </motion.button>
         </div>
       </div>
-
 
       {/* Navigation Links
           - pl-3 pr-0: items must touch the RIGHT edge so the tab can merge with the page
@@ -197,8 +205,8 @@ export default function TeacherSidebar() {
               // so it can't slip behind the sidebar's background.
               className={`
                 group relative isolate w-full flex items-center gap-3 py-3 rounded-l-full text-sm font-medium transition-colors cursor-pointer
-                ${sidebarCollapsed ? 'justify-center px-2' : 'pl-4 pr-6'}
-                ${isActive ? 'text-primary-900 font-semibold' : 'text-primary-200/80 hover:text-white hover:bg-white/10'}
+                ${sidebarCollapsed ? "justify-center px-2" : "pl-4 pr-6"}
+                ${isActive ? "text-primary-900 font-semibold" : "text-primary-200/80 hover:text-white hover:bg-white/10"}
               `}
               title={sidebarCollapsed ? item.label : void 0}
             >
@@ -206,7 +214,7 @@ export default function TeacherSidebar() {
               {isActive && (
                 <motion.span
                   layoutId="teacherSidebarActiveIndicator"
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   className="absolute inset-y-0 left-0 right-0 -z-10 rounded-l-full bg-[var(--page-bg)]"
                 >
                   {/* Top curve: sits just above the tab, on the sidebar's right edge */}
@@ -223,14 +231,14 @@ export default function TeacherSidebar() {
               )}
 
               <Icon
-                className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-primary-900' : 'text-primary-200/80 group-hover:text-white'}`}
+                className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? "text-primary-900" : "text-primary-200/80 group-hover:text-white"}`}
               />
 
               <AnimatePresence initial={false}>
                 {!sidebarCollapsed && (
                   <motion.span
                     initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
+                    animate={{ opacity: 1, width: "auto" }}
                     exit={{ opacity: 0, width: 0 }}
                     transition={{ duration: 0.18 }}
                     className="flex-1 text-left whitespace-nowrap overflow-hidden text-sm"
@@ -243,7 +251,7 @@ export default function TeacherSidebar() {
               {/* Live Badge */}
               {!sidebarCollapsed && item.badge && (
                 <span
-                  className={`ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full ${isActive ? 'bg-primary-900/10 text-primary-900' : 'bg-white/15 text-white'}`}
+                  className={`ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full ${isActive ? "bg-primary-900/10 text-primary-900" : "bg-white/15 text-white"}`}
                 >
                   {item.badge}
                 </span>
@@ -262,17 +270,13 @@ export default function TeacherSidebar() {
       <div className="p-3 border-t border-white/10 shrink-0 space-y-2">
         <div
           className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${
-            sidebarCollapsed ? 'justify-center' : ''
+            sidebarCollapsed ? "justify-center" : ""
           }`}
         >
           {/* Settings-style Initials Avatar with Online Badge */}
           <div className="relative shrink-0">
             <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/70 flex items-center justify-center text-indigo-700 font-bold text-xs ring-1 ring-white/20 shrink-0 shadow-xs">
-              {initial ? (
-                initial
-              ) : (
-                <User className="w-4 h-4 text-indigo-600" />
-              )}
+              {initial ? initial : <User className="w-4 h-4 text-indigo-600" />}
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-purple-950" />
           </div>
@@ -280,10 +284,16 @@ export default function TeacherSidebar() {
           {/* Dynamic Full Name & Role */}
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-white truncate" title={fullName}>
+              <span
+                className="text-xs font-bold text-white truncate"
+                title={fullName}
+              >
                 {fullName}
               </span>
-              <span className="text-[10px] text-purple-300 truncate" title={displayRole}>
+              <span
+                className="text-[10px] text-purple-300 truncate"
+                title={displayRole}
+              >
                 {displayRole}
               </span>
             </div>
@@ -293,7 +303,7 @@ export default function TeacherSidebar() {
           {!sidebarCollapsed && (
             <button
               type="button"
-              onClick={logout}
+              onClick={handleLogout}
               className="p-1.5 rounded-lg text-purple-300 hover:text-rose-300 hover:bg-white/10 transition-colors cursor-pointer"
               title="Sign Out"
             >
@@ -331,7 +341,7 @@ export default function TeacherSidebar() {
           No border-r / shadow: any line on the right edge would cut the tab off from the page. */}
       <motion.aside
         animate={{ width: sidebarCollapsed ? 80 : 260 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
         className="hidden lg:block h-screen sticky top-0 bg-purple-950 z-30 shrink-0 overflow-hidden"
       >
         {navContent}
@@ -354,7 +364,7 @@ export default function TeacherSidebar() {
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
               className="relative w-72 max-w-[85vw] h-full bg-purple-950 shadow-2xl z-10"
             >
               {navContent}
@@ -364,4 +374,4 @@ export default function TeacherSidebar() {
       </AnimatePresence>
     </>
   );
-};
+}

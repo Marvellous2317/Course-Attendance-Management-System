@@ -159,7 +159,13 @@ export const useCreateTeacherOffering = (options = {}) => {
       // 1. Invalidate teacher offerings list
       queryClient.invalidateQueries({ queryKey: TEACHER_KEYS.allOfferings });
 
-      // 2. Invalidate dashboard (totalOfferings incremented)
+      // 2. Invalidate the parent course (offering count may have changed)
+      const targetCourseId = variables.courseId ?? variables.id;
+      if (targetCourseId) {
+        queryClient.invalidateQueries({ queryKey: TEACHER_KEYS.course(targetCourseId) });
+      }
+
+      // 3. Invalidate dashboard (totalOfferings incremented)
       queryClient.invalidateQueries({ queryKey: TEACHER_KEYS.dashboard });
 
       onSuccess?.(data, variables, context);

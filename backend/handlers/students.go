@@ -171,23 +171,9 @@ func dedupeIDs(ids []uint) []uint {
 // @Security     BearerAuth
 // @Router       /admin/students [get]
 func (h *Handler) GetAllStudents(w http.ResponseWriter, r *http.Request) {
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-
-	if page <= 0 {
-		page = 1
-	}
-
-	perPage, _ := strconv.Atoi(r.URL.Query().Get("perPage"))
-
-	switch {
-	case perPage <= 0:
-		perPage = 20
-	case perPage > 50:
-		perPage = 50
-	}
-
-	offset := (page - 1) * perPage
+	page, perPage, offset := parsePagination(r)
 	onlyDeleted := r.URL.Query().Get("isDeleted") == "true"
+	search := r.URL.Query().Get("search")
 
 	countQuery := h.DB.Model(&models.User{}).Where("role_id = ?", studentRoleID)
 	findQuery := h.DB.Preload("Role").Where("role_id = ?", studentRoleID)
@@ -195,6 +181,12 @@ func (h *Handler) GetAllStudents(w http.ResponseWriter, r *http.Request) {
 	if onlyDeleted {
 		countQuery = countQuery.Unscoped().Where("deleted_at IS NOT NULL")
 		findQuery = findQuery.Unscoped().Where("deleted_at IS NOT NULL")
+	}
+
+	if search != "" {
+		like := "%" + search + "%"
+		countQuery = countQuery.Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?", like, like, like)
+		findQuery = findQuery.Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?", like, like, like)
 	}
 
 	var totalRecords int64
@@ -206,7 +198,7 @@ func (h *Handler) GetAllStudents(w http.ResponseWriter, r *http.Request) {
 
 	var students []models.User
 
-	if err := findQuery.Order("-ID").Limit(perPage).Offset(offset).Find(&students).Error; err != nil {
+	if err := findQuery.Order("id DESC").Limit(perPage).Offset(offset).Find(&students).Error; err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
@@ -216,17 +208,10 @@ func (h *Handler) GetAllStudents(w http.ResponseWriter, r *http.Request) {
 		response = append(response, toStudentResponse(student))
 	}
 
-	totalPages := int((totalRecords + int64(perPage) - 1) / int64(perPage))
-
 	writeJSON(w, http.StatusOK, StudentListResponse{
 		Message: "Request successful",
 		Data:    response,
-		Meta: PaginationMeta{
-			TotalRecords: totalRecords,
-			TotalPages:   totalPages,
-			Page:         page,
-			PerPage:      perPage,
-		},
+		Meta:    newPaginationMeta(totalRecords, page, perPage),
 	})
 }
 

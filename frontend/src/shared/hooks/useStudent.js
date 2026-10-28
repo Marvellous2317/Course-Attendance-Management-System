@@ -142,6 +142,9 @@ export const useEnrollOfferings = (options = {}) => {
       // 3. Invalidate attendance (new classes added to attendance tracking)
       queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.allAttendance });
 
+      // 4. Invalidate offerings catalog (seat counts / enrollment status may have changed)
+      queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.allOfferings });
+
       onSuccess?.(data, variables, context);
     },
     ...restOptions,

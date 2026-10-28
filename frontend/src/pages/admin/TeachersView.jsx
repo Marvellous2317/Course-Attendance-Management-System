@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import {
   UserPlus,
   Mail,
@@ -15,6 +15,8 @@ import {
   MoreVertical,
   BookPlus,
   BookMinus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useUIStore } from "../../shared/store/useUIStore";
 import useToast from "../../shared/hooks/useToast";
@@ -109,8 +111,19 @@ export default function TeachersView() {
 
   // Search query state
   const [localSearch, setLocalSearch] = useState("");
+  const deferredSearch = useDeferredValue(localSearch);
   const searchQuery = localSearch;
   const setSearchQuery = setLocalSearch;
+
+  // Pagination state
+  const [activePage, setActivePage] = useState(1);
+  const [deletedPage, setDeletedPage] = useState(1);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setActivePage(1);
+    setDeletedPage(1);
+  }, [deferredSearch]);
 
   // Filter tabs: "All" (Active) | "Deleted" (Soft-Deleted)
   const [activeTab, setActiveTab] = useState("All");
@@ -120,12 +133,14 @@ export default function TeachersView() {
   // Card dropdown & course assignment modal state
   const [openMenuTeacherId, setOpenMenuTeacherId] = useState(null);
   const [teacherToAssign, setTeacherToAssign] = useState(null);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState([]);
   const [assignError, setAssignError] = useState("");
+  const [assignCourseSearch, setAssignCourseSearch] = useState("");
 
   const [teacherToUnassign, setTeacherToUnassign] = useState(null);
   const [unassignCourseId, setUnassignCourseId] = useState("");
   const [unassignError, setUnassignError] = useState("");
+  const [teacherToView, setTeacherToView] = useState(null);
 
   // Close dropdown menu when clicking anywhere outside
   useEffect(() => {
@@ -141,13 +156,15 @@ export default function TeachersView() {
   // ---------------------------------------------------------------------------
   // 1. Queries
   // ---------------------------------------------------------------------------
+  const perPage = 20;
+
   const {
     data: activeData,
     isLoading: isLoadingActive,
     isError: isErrorActive,
     error: activeError,
     refetch: refetchActive,
-  } = useAdminTeachers({ isDeleted: false });
+  } = useAdminTeachers({ isDeleted: false, search: deferredSearch, page: activePage, perPage });
 
   const {
     data: deletedData,
@@ -155,11 +172,17 @@ export default function TeachersView() {
     isError: isErrorDeleted,
     error: deletedError,
     refetch: refetchDeleted,
-  } = useAdminTeachers({ isDeleted: true });
+  } = useAdminTeachers({ isDeleted: true, search: deferredSearch, page: deletedPage, perPage });
 
   const { data: coursesData, isLoading: isLoadingCourses } = useAdminCourses({
     isDeleted: false,
   });
+
+  const deferredAssignSearch = useDeferredValue(assignCourseSearch);
+  const { data: assignCoursesData, isLoading: isLoadingAssignCourses } = useAdminCourses(
+    { isDeleted: false, search: deferredAssignSearch },
+    { enabled: Boolean(teacherToAssign) }
+  );
 
   const coursesList = useMemo(() => {
     if (!coursesData) return [];
@@ -169,18 +192,34 @@ export default function TeachersView() {
     return [];
   }, [coursesData]);
 
+  const assignCoursesList = useMemo(() => {
+    const src = assignCoursesData || coursesData;
+    if (!src) return [];
+    if (Array.isArray(src)) return src;
+    if (Array.isArray(src.courses)) return src.courses;
+    if (Array.isArray(src.data)) return src.data;
+    return [];
+  }, [assignCoursesData, coursesData]);
+
   const activeTeachers = useMemo(() => normalizeTeachers(activeData), [activeData]);
   const deletedTeachers = useMemo(() => normalizeTeachers(deletedData), [deletedData]);
 
+  const activeMeta = activeData?.meta || {};
+  const deletedMeta = deletedData?.meta || {};
+
   const counts = useMemo(
     () => ({
-      all: activeTeachers.length,
-      deleted: deletedTeachers.length,
+      all: activeMeta.totalRecords ?? activeTeachers.length,
+      deleted: deletedMeta.totalRecords ?? deletedTeachers.length,
     }),
-    [activeTeachers, deletedTeachers]
+    [activeTeachers, deletedTeachers, activeMeta, deletedMeta]
   );
 
   const currentList = activeTab === "Deleted" ? deletedTeachers : activeTeachers;
+  const currentMeta = activeTab === "Deleted" ? deletedMeta : activeMeta;
+  const currentPage = activeTab === "Deleted" ? deletedPage : activePage;
+  const setCurrentPage = activeTab === "Deleted" ? setDeletedPage : setActivePage;
+  const totalPages = currentMeta.totalPages || 1;
   const isLoading = activeTab === "Deleted" ? isLoadingDeleted : isLoadingActive;
   const isError = activeTab === "Deleted" ? isErrorDeleted : isErrorActive;
   const error = activeTab === "Deleted" ? deletedError : activeError;
@@ -209,9 +248,10 @@ export default function TeachersView() {
     useAssignCoursesToTeacher({
       onSuccess: () => {
         setTeacherToAssign(null);
-        setSelectedCourseId("");
+        setSelectedCourseIds([]);
         setAssignError("");
-        showToast?.("Course assigned successfully.", "success");
+        setAssignCourseSearch("");
+        showToast?.("Courses assigned successfully.", "success");
       },
       onError: (err) => {
         setAssignError(
@@ -257,7 +297,17 @@ export default function TeachersView() {
 
   const handleOpenAssignModal = (teacher) => {
     setTeacherToAssign(teacher);
-    setSelectedCourseId("");
+    setSelectedCourseIds([]);
+    setAssignError("");
+    setAssignCourseSearch("");
+  };
+
+  const handleToggleCourseId = (courseId) => {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
     setAssignError("");
   };
 
@@ -266,8 +316,8 @@ export default function TeachersView() {
       setAssignError("No faculty selected.");
       return;
     }
-    if (!selectedCourseId) {
-      setAssignError("Please select a course to assign.");
+    if (selectedCourseIds.length === 0) {
+      setAssignError("Please select at least one course to assign.");
       return;
     }
     const teacherId = getTeacherId(teacherToAssign);
@@ -276,10 +326,11 @@ export default function TeachersView() {
       return;
     }
 
-    const newCourseId = Number(selectedCourseId);
     const existing = getTeacherCourses(teacherToAssign, coursesList);
     const existingIds = existing.map((c) => Number(c.id)).filter(Boolean);
-    const courseIds = Array.from(new Set([...existingIds, newCourseId]));
+    const courseIds = Array.from(
+      new Set([...existingIds, ...selectedCourseIds.map(Number)])
+    );
 
     setAssignError("");
     assignCoursesMutation({
@@ -332,31 +383,7 @@ export default function TeachersView() {
   // ---------------------------------------------------------------------------
   // 4. Filter List by Search Query
   // ---------------------------------------------------------------------------
-  const filteredTeachers = useMemo(() => {
-    return currentList.filter((teacher) => {
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
-      const teacherName = getTeacherName(teacher).toLowerCase();
-      const teacherCode = String(getTeacherId(teacher) || "").toLowerCase();
-      const dept = (teacher.department || "").toLowerCase();
-      const email = (teacher.email || "").toLowerCase();
-      const courses = getTeacherCourses(teacher, coursesList);
-      const matchesCourse = courses.some(
-        (c) =>
-          c.title?.toLowerCase().includes(q) ||
-          c.code?.toLowerCase().includes(q)
-      );
-
-      return (
-        teacherName.includes(q) ||
-        dept.includes(q) ||
-        teacherCode.includes(q) ||
-        email.includes(q) ||
-        matchesCourse
-      );
-    });
-  }, [currentList, searchQuery, coursesList]);
+  const filteredTeachers = currentList;
 
   // Set of courses already assigned to the teacher currently being assigned to
   const assignedCourseIds = useMemo(() => {
@@ -466,7 +493,7 @@ export default function TeachersView() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search faculty or course..."
+                  placeholder="Search teacher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-secondary-500 focus:ring-2 focus:ring-secondary-500 focus:outline-none transition-colors"
@@ -535,7 +562,10 @@ export default function TeachersView() {
 
             return (
               <ScrollReveal key={currentId || index} delay={0.03 * (index % 12)}>
-                <Card className="p-4 h-full flex flex-col justify-between hover:border-slate-300 transition-all group relative">
+                <Card
+                  className="p-4 h-full flex flex-col justify-between hover:border-slate-300 transition-all group relative cursor-pointer"
+                  onClick={() => setTeacherToView(teacher)}
+                >
                   <div className="space-y-3.5">
                     {/* Top card bar: Avatar, Name, Status & 3-dots Menu */}
                     <div className="flex items-start justify-between gap-3">
@@ -562,7 +592,7 @@ export default function TeachersView() {
 
                         {/* Three dots More button (Assign and Unassign ONLY open from here) */}
                         {!isDel && (
-                          <div className="relative teacher-card-menu">
+                          <div className="relative teacher-card-menu" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -633,41 +663,17 @@ export default function TeachersView() {
                       )}
                     </div>
 
-                    {/* Assigned Courses Section on Card (shows when assigned, disappears when unassigned) */}
-                    <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <BookOpen className="w-3 h-3 text-indigo-500" />
-                        <span>Assigned Courses ({teacherCourses.length})</span>
+                    {/* Courses count badge */}
+                    <div className="pt-2.5 border-t border-slate-100">
+                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>{teacherCourses.length} {teacherCourses.length === 1 ? "Course" : "Courses"} Assigned</span>
                       </span>
-
-                      {teacherCourses.length === 0 ? (
-                        <div className="py-2 px-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-400 italic">
-                          No courses assigned yet
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                          {teacherCourses.map((c) => (
-                            <div
-                              key={c.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50/90 border border-indigo-200/70 text-indigo-950 text-xs font-semibold"
-                            >
-                              {c.code && (
-                                <span className="font-mono font-bold text-[10px] text-indigo-600 bg-white px-1 py-0.5 rounded border border-indigo-200">
-                                  {c.code}
-                                </span>
-                              )}
-                              <span className="truncate max-w-[150px]" title={c.title}>
-                                {c.title}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                     {isDel ? (
                       <Button
                         size="xs"
@@ -683,7 +689,7 @@ export default function TeachersView() {
                         onClick={() => handleRestore(teacher)}
                         className="w-full text-xs font-semibold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/80 border-emerald-200/80 cursor-pointer justify-center"
                       >
-                        {isCurrentlyRestoring ? "Restoring..." : "Restore Faculty"}
+                        {isCurrentlyRestoring ? "Restoring..." : "Restore Teacher"}
                       </Button>
                     ) : (
                       <>
@@ -716,12 +722,43 @@ export default function TeachersView() {
         </div>
       )}
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-slate-500">
+            Page {currentPage} of {totalPages} ({counts[activeTab === "Deleted" ? "deleted" : "all"]} total)
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Previous
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Assign Course Modal */}
       <Modal
         isOpen={Boolean(teacherToAssign)}
         onClose={() => !isAssigning && setTeacherToAssign(null)}
-        title="Assign Course"
-        subtitle={`Assign academic course to ${
+        title="Assign Courses"
+        subtitle={`Assign academic courses to ${
           teacherToAssign ? getTeacherName(teacherToAssign) : "Faculty"
         }`}
       >
@@ -735,31 +772,69 @@ export default function TeachersView() {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Select Course to Assign *
+              Select Courses to Assign *
             </label>
-            <select
-              value={selectedCourseId}
-              onChange={(e) => {
-                setSelectedCourseId(e.target.value);
-                setAssignError("");
-              }}
-              disabled={isLoadingCourses || isAssigning}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
-            >
-              <option value="">
-                {isLoadingCourses ? "Loading courses..." : "-- Select a course to assign --"}
-              </option>
-              {coursesList.map((course) => {
-                const cId = course.id ?? course._id;
-                const isAlreadyAssigned = assignedCourseIds.has(String(cId));
-                const cTitle = course.code ? `${course.code} - ${course.title}` : course.title;
-                return (
-                  <option key={cId} value={cId} disabled={isAlreadyAssigned}>
-                    {cTitle} {isAlreadyAssigned ? "(Already assigned)" : ""}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="relative mb-2">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search courses by name or code..."
+                value={assignCourseSearch}
+                onChange={(e) => setAssignCourseSearch(e.target.value)}
+                disabled={isAssigning}
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors"
+              />
+            </div>
+            {isLoadingAssignCourses ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                <span className="ml-2 text-xs text-slate-400">Searching courses...</span>
+              </div>
+            ) : assignCoursesList.length === 0 ? (
+              <div className="py-4 text-center text-xs text-slate-400 border border-slate-200 rounded-xl">
+                {assignCourseSearch ? "No courses match your search." : "No courses available."}
+              </div>
+            ) : (
+              <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                {assignCoursesList.map((course) => {
+                  const cId = course.id ?? course._id;
+                  const isAlreadyAssigned = assignedCourseIds.has(String(cId));
+                  const isSelected = selectedCourseIds.includes(String(cId));
+                  const cTitle = course.code ? `${course.code} - ${course.title}` : course.title;
+                  return (
+                    <label
+                      key={cId}
+                      className={`flex items-center gap-3 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                        isAlreadyAssigned
+                          ? "opacity-50 cursor-not-allowed bg-slate-50"
+                          : isSelected
+                          ? "bg-indigo-50"
+                          : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected || isAlreadyAssigned}
+                        disabled={isAlreadyAssigned || isAssigning}
+                        onChange={() => handleToggleCourseId(String(cId))}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className={isAlreadyAssigned ? "text-slate-400" : "text-slate-700"}>
+                        {cTitle}
+                        {isAlreadyAssigned && (
+                          <span className="ml-1.5 text-[10px] font-semibold text-slate-400">(Already assigned)</span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {selectedCourseIds.length > 0 && (
+              <p className="text-xs text-indigo-600 font-medium mt-1.5">
+                {selectedCourseIds.length} course{selectedCourseIds.length > 1 ? "s" : ""} selected
+              </p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -786,7 +861,7 @@ export default function TeachersView() {
               }
               className="cursor-pointer"
             >
-              {isAssigning ? "Assigning..." : "Assign Course"}
+              {isAssigning ? "Assigning..." : `Assign Course${selectedCourseIds.length > 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>
@@ -878,6 +953,99 @@ export default function TeachersView() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Teacher Detail Modal */}
+      <Modal
+        isOpen={Boolean(teacherToView)}
+        onClose={() => setTeacherToView(null)}
+        title={teacherToView ? getTeacherName(teacherToView) : "Faculty Details"}
+        subtitle="Faculty profile and assigned courses"
+      >
+        {teacherToView && (() => {
+          const viewId = getTeacherId(teacherToView);
+          const viewName = getTeacherName(teacherToView);
+          const viewAvatar = getTeacherAvatar(teacherToView, viewName);
+          const viewCourses = getTeacherCourses(teacherToView, coursesList);
+
+          return (
+            <div className="space-y-5">
+              {/* Profile Header */}
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <img
+                  src={viewAvatar}
+                  alt={viewName}
+                  className="w-14 h-14 rounded-xl object-cover ring-1 ring-slate-200 bg-slate-100 shrink-0"
+                />
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-slate-900">{viewName}</h3>
+                  <span className="text-xs font-mono text-slate-400">ID #{viewId}</span>
+                </div>
+              </div>
+
+              {/* Info Fields */}
+              <div className="space-y-2.5 text-sm">
+                {teacherToView.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-slate-700">{teacherToView.email}</span>
+                  </div>
+                )}
+                {teacherToView.department && (
+                  <div className="flex items-center gap-3">
+                    <Briefcase className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span className="text-slate-700 font-semibold">{teacherToView.department}</span>
+                  </div>
+                )}
+                {teacherToView.qualification && (
+                  <div className="flex items-center gap-3">
+                    <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-slate-700">{teacherToView.qualification}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Assigned Courses */}
+              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                  Assigned Courses ({viewCourses.length})
+                </h4>
+
+                {viewCourses.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                    No courses assigned yet
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {viewCourses.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors"
+                      >
+                        {c.code && (
+                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 shrink-0">
+                            {c.code}
+                          </span>
+                        )}
+                        <span className="text-sm font-medium text-slate-800 truncate">
+                          {c.title}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <Button size="sm" variant="ghost" onClick={() => setTeacherToView(null)} className="cursor-pointer">
+                  Close
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* Delete Confirmation Modal */}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useDeferredValue } from "react";
 import {
   UserPlus,
   Mail,
@@ -17,6 +17,7 @@ import {
   Clock,
   Layers,
   ChevronRight,
+  ChevronLeft,
   X,
 } from "lucide-react";
 import { useUIStore } from "../../shared/store/useUIStore";
@@ -161,8 +162,19 @@ export default function StudentsView() {
 
   // Search query support
   const [localSearch, setLocalSearch] = useState("");
+  const deferredSearch = useDeferredValue(localSearch);
   const searchQuery = localSearch;
   const setSearchQuery = setLocalSearch;
+
+  // Pagination state
+  const [activePage, setActivePage] = useState(1);
+  const [deletedPage, setDeletedPage] = useState(1);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setActivePage(1);
+    setDeletedPage(1);
+  }, [deferredSearch]);
 
   // Tabs: "all" (Active) or "deleted" (Soft-Deleted)
   const [activeTab, setActiveTab] = useState("all");
@@ -176,6 +188,8 @@ export default function StudentsView() {
   // State for Viewing Student's Full Enrolled Courses Modal
   const [activeStudentCourses, setActiveStudentCourses] = useState(null);
 
+  const perPage = 20;
+
   // ---------------------------------------------------------------------------
   // 1. Fetch Active Students
   // ---------------------------------------------------------------------------
@@ -185,7 +199,7 @@ export default function StudentsView() {
     isError: isErrorActive,
     error: activeError,
     refetch: refetchActive,
-  } = useAdminStudents({ isDeleted: false });
+  } = useAdminStudents({ isDeleted: false, search: deferredSearch, page: activePage, perPage });
 
   // ---------------------------------------------------------------------------
   // 2. Fetch Soft-Deleted Students
@@ -196,33 +210,26 @@ export default function StudentsView() {
     isError: isErrorDeleted,
     error: deletedError,
     refetch: refetchDeleted,
-  } = useAdminStudents({ isDeleted: true });
+  } = useAdminStudents({ isDeleted: true, search: deferredSearch, page: deletedPage, perPage });
 
   const activeStudents = useMemo(() => normalizeList(activeData), [activeData]);
   const deletedStudents = useMemo(() => normalizeList(deletedData), [deletedData]);
 
+  const activeMeta = activeData?.meta || {};
+  const deletedMeta = deletedData?.meta || {};
+
   // Selected dataset based on active tab
   const currentList = activeTab === "deleted" ? deletedStudents : activeStudents;
+  const currentMeta = activeTab === "deleted" ? deletedMeta : activeMeta;
+  const currentPage = activeTab === "deleted" ? deletedPage : activePage;
+  const setCurrentPage = activeTab === "deleted" ? setDeletedPage : setActivePage;
+  const totalPages = currentMeta.totalPages || 1;
   const isLoading = activeTab === "deleted" ? isLoadingDeleted : isLoadingActive;
   const isError = activeTab === "deleted" ? isErrorDeleted : isErrorActive;
   const error = activeTab === "deleted" ? deletedError : activeError;
   const refetch = activeTab === "deleted" ? refetchDeleted : refetchActive;
 
-  // ---------------------------------------------------------------------------
-  // 3. Filter Students via Search
-  // ---------------------------------------------------------------------------
-  const filteredStudents = useMemo(() => {
-    return currentList.filter((student) => {
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
-      const name = getStudentName(student).toLowerCase();
-      const email = (student.email || "").toLowerCase();
-      const id = String(getStudentId(student) || "").toLowerCase();
-
-      return name.includes(q) || email.includes(q) || id.includes(q);
-    });
-  }, [currentList, searchQuery]);
+  const filteredStudents = currentList;
 
   // ---------------------------------------------------------------------------
   // 4. Delete & Restore Mutations
@@ -294,7 +301,7 @@ export default function StudentsView() {
                       : "bg-slate-200 text-slate-700"
                   }`}
                 >
-                  {activeStudents.length}
+                  {activeMeta.totalRecords ?? activeStudents.length}
                 </span>
               </button>
 
@@ -315,7 +322,7 @@ export default function StudentsView() {
                       : "bg-slate-200 text-slate-700"
                   }`}
                 >
-                  {deletedStudents.length}
+                  {deletedMeta.totalRecords ?? deletedStudents.length}
                 </span>
               </button>
             </div>
@@ -528,6 +535,37 @@ export default function StudentsView() {
               </ScrollReveal>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!isLoading && !isError && totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-slate-500">
+            Page {currentPage} of {totalPages} ({currentMeta.totalRecords ?? 0} total)
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Previous
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 

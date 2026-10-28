@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { motion } from "motion/react";
 import {
   BookPlus,
@@ -17,6 +17,8 @@ import {
   MoreVertical,
   Users,
   GraduationCap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useUIStore } from "../../shared/store/useUIStore";
 import useToast from "../../shared/hooks/useToast";
@@ -578,8 +580,19 @@ export default function CoursesView() {
 
   // Search state
   const [localSearch, setLocalSearch] = useState("");
+  const deferredSearch = useDeferredValue(localSearch);
   const searchQuery = localSearch;
   const setSearchQuery = setLocalSearch;
+
+  // Pagination state
+  const [activePage, setActivePage] = useState(1);
+  const [deletedPage, setDeletedPage] = useState(1);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setActivePage(1);
+    setDeletedPage(1);
+  }, [deferredSearch]);
 
   // Filter tabs: "All" (Active) | "Deleted"
   const [activeTab, setActiveTab] = useState("All");
@@ -604,13 +617,15 @@ export default function CoursesView() {
   // ---------------------------------------------------------------------------
   // 1. Fetch Courses
   // ---------------------------------------------------------------------------
+  const perPage = 20;
+
   const {
     data: activeCoursesData,
     isLoading: isLoadingActive,
     isError: isErrorActive,
     error: errorActive,
     refetch: refetchActive,
-  } = useAdminCourses({ isDeleted: false });
+  } = useAdminCourses({ isDeleted: false, search: deferredSearch, page: activePage, perPage });
 
   const {
     data: deletedCoursesData,
@@ -618,7 +633,7 @@ export default function CoursesView() {
     isError: isErrorDeleted,
     error: errorDeleted,
     refetch: refetchDeleted,
-  } = useAdminCourses({ isDeleted: true });
+  } = useAdminCourses({ isDeleted: true, search: deferredSearch, page: deletedPage, perPage });
 
   const activeCourses = useMemo(() => {
     const list = normalizeCourses(activeCoursesData);
@@ -630,39 +645,25 @@ export default function CoursesView() {
     return list.filter((c) => isCourseDeleted(c));
   }, [deletedCoursesData]);
 
+  const activeMeta = activeCoursesData?.meta || {};
+  const deletedMeta = deletedCoursesData?.meta || {};
+
   const counts = useMemo(
     () => ({
-      all: activeCourses.length,
-      deleted: deletedCourses.length,
+      all: activeMeta.totalRecords ?? activeCourses.length,
+      deleted: deletedMeta.totalRecords ?? deletedCourses.length,
     }),
-    [activeCourses, deletedCourses]
+    [activeCourses, deletedCourses, activeMeta, deletedMeta]
   );
 
   const currentCourses =
     activeTab === "Deleted" ? deletedCourses : activeCourses;
+  const currentMeta = activeTab === "Deleted" ? deletedMeta : activeMeta;
+  const currentPage = activeTab === "Deleted" ? deletedPage : activePage;
+  const setCurrentPage = activeTab === "Deleted" ? setDeletedPage : setActivePage;
+  const totalPages = currentMeta.totalPages || 1;
 
-  const filteredCourses = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return currentCourses;
-
-    return currentCourses.filter((course) => {
-      const code = (course.code || "").toLowerCase();
-      const title = (course.title || "").toLowerCase();
-      const desc = (course.description || "").toLowerCase();
-      const instructor = (course.instructorName || "").toLowerCase();
-      const dept = (course.department || "").toLowerCase();
-      const id = String(getCourseId(course) || "").toLowerCase();
-
-      return (
-        title.includes(q) ||
-        code.includes(q) ||
-        desc.includes(q) ||
-        instructor.includes(q) ||
-        dept.includes(q) ||
-        id.includes(q)
-      );
-    });
-  }, [currentCourses, searchQuery]);
+  const filteredCourses = currentCourses;
 
   // ---------------------------------------------------------------------------
   // 2. Mutations
@@ -898,6 +899,37 @@ export default function CoursesView() {
               </ScrollReveal>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-slate-500">
+            Page {currentPage} of {totalPages} ({counts[activeTab === "Deleted" ? "deleted" : "all"]} total)
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Previous
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
+              className="cursor-pointer"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 

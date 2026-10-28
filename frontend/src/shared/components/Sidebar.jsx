@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -12,18 +12,19 @@ import {
   ChevronsRight,
   LogOut,
   User,
-} from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useUIStore } from '../store/useUIStore';
-import { useAuthStore } from '../../shared/store/useAuthStore';
-import { getUserProfile } from '../../shared/api/auth';
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useUIStore } from "../store/useUIStore";
+import { useAuthStore } from "../../shared/store/useAuthStore";
+import { getUserProfile } from "../../shared/api/auth";
+import useAuth from "../hooks/useAuth";
 
 // Helper to format role names ({ id: 1, name: "admin" } -> "Super Admin")
 const formatRole = (r) => {
-  const raw = typeof r === 'object' ? r?.name : r;
-  if (!raw) return 'Super Admin';
-  return raw.toLowerCase() === 'admin'
-    ? 'Super Admin'
+  const raw = typeof r === "object" ? r?.name : r;
+  if (!raw) return "Super Admin";
+  return raw.toLowerCase() === "admin"
+    ? "Super Admin"
     : raw.charAt(0).toUpperCase() + raw.slice(1);
 };
 
@@ -38,7 +39,12 @@ export const Sidebar = () => {
   } = useUIStore();
   const invoices = [];
   const announcements = [];
-  const logout = useAuthStore((state) => state.clearSession);
+
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout(); // Calls clearSession(), queryClient.clear(), and navigates to /login
+  };
 
   // ---------------------------------------------------------------------------
   // Profile Data & API Consumption
@@ -46,7 +52,7 @@ export const Sidebar = () => {
   const { user, setUser } = useAuthStore();
 
   const { data: profileResponse } = useQuery({
-    queryKey: ['userProfile'],
+    queryKey: ["userProfile"],
     queryFn: getUserProfile,
     staleTime: 1000 * 60 * 5, // keep fresh for 5 minutes
   });
@@ -54,7 +60,7 @@ export const Sidebar = () => {
   // Sync latest server profile into Zustand store
   useEffect(() => {
     const profile = profileResponse?.data || profileResponse;
-    if (profile && typeof profile === 'object') {
+    if (profile && typeof profile === "object") {
       setUser({
         ...user,
         ...profile,
@@ -67,26 +73,26 @@ export const Sidebar = () => {
   const currentProfile = profileResponse?.data || profileResponse || user;
   const firstName =
     currentProfile?.firstName ||
-    (currentProfile?.name ? currentProfile.name.split(' ')[0] : '');
+    (currentProfile?.name ? currentProfile.name.split(" ")[0] : "");
   const lastName =
     currentProfile?.lastName ||
     (currentProfile?.name
-      ? currentProfile.name.split(' ').slice(1).join(' ')
-      : '');
+      ? currentProfile.name.split(" ").slice(1).join(" ")
+      : "");
   const fullName =
-    `${firstName} ${lastName}`.trim() || currentProfile?.name || 'Admin User';
+    `${firstName} ${lastName}`.trim() || currentProfile?.name || "Admin User";
   const displayRole = formatRole(currentProfile?.role);
-  const initial = firstName ? firstName.charAt(0).toUpperCase() : '';
+  const initial = firstName ? firstName.charAt(0).toUpperCase() : "";
 
   // Close mobile drawer on Escape key press
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && mobileMenuOpen) {
+      if (e.key === "Escape" && mobileMenuOpen) {
         setMobileMenuOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobileMenuOpen, setMobileMenuOpen]);
 
   // Close mobile drawer if resized to desktop breakpoint
@@ -96,29 +102,29 @@ export const Sidebar = () => {
         setMobileMenuOpen(false);
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [mobileMenuOpen, setMobileMenuOpen]);
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
 
   const mainNavItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'students', label: 'Students', icon: GraduationCap },
-    { id: 'teachers', label: 'Teachers', icon: Users },
-    { id: 'courses', label: 'Courses', icon: BookOpen },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "students", label: "Students", icon: GraduationCap },
+    { id: "teachers", label: "Teachers", icon: Users },
+    { id: "courses", label: "Courses", icon: BookOpen },
     // { id: 'roles', label: 'Roles', icon: ShieldCheck },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   const navContent = (
@@ -160,7 +166,7 @@ export const Sidebar = () => {
         {/* Collapse toggle button on desktop */}
         <div
           className={`hidden lg:block right-3 absolute ${
-            sidebarCollapsed ? 'justify-center px-2' : ''
+            sidebarCollapsed ? "justify-center px-2" : ""
           }`}
         >
           <motion.button
@@ -168,11 +174,11 @@ export const Sidebar = () => {
             whileTap={{ scale: 0.92 }}
             onClick={toggleSidebar}
             className="p-1.5 rounded-lg text-primary-200 hover:text-secondary-400 hover:bg-white/10 transition-colors cursor-pointer"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <motion.div
               animate={{ rotate: sidebarCollapsed ? 180 : 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
               <ChevronLeft className="w-4 h-4" />
             </motion.div>
@@ -194,11 +200,11 @@ export const Sidebar = () => {
               }}
               className={`
                 group relative isolate w-full flex items-center gap-3 py-3 rounded-l-full text-sm font-medium transition-colors cursor-pointer
-                ${sidebarCollapsed ? 'justify-center px-2' : 'pl-4 pr-6'}
+                ${sidebarCollapsed ? "justify-center px-2" : "pl-4 pr-6"}
                 ${
                   isActive
-                    ? 'text-primary-900 font-semibold'
-                    : 'text-primary-200/80 hover:text-white hover:bg-white/10'
+                    ? "text-primary-900 font-semibold"
+                    : "text-primary-200/80 hover:text-white hover:bg-white/10"
                 }
               `}
               title={sidebarCollapsed ? item.label : void 0}
@@ -207,7 +213,7 @@ export const Sidebar = () => {
               {isActive && (
                 <motion.span
                   layoutId="sidebarActiveIndicator"
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   className="absolute inset-y-0 left-0 right-0 -z-10 rounded-l-full bg-[var(--page-bg)]"
                 >
                   <span
@@ -224,8 +230,8 @@ export const Sidebar = () => {
               <Icon
                 className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
                   isActive
-                    ? 'text-primary-900'
-                    : 'text-primary-200/80 group-hover:text-white'
+                    ? "text-primary-900"
+                    : "text-primary-200/80 group-hover:text-white"
                 }`}
               />
 
@@ -233,7 +239,7 @@ export const Sidebar = () => {
                 {!sidebarCollapsed && (
                   <motion.span
                     initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
+                    animate={{ opacity: 1, width: "auto" }}
                     exit={{ opacity: 0, width: 0 }}
                     transition={{ duration: 0.18 }}
                     className="flex-1 text-left whitespace-nowrap overflow-hidden text-sm"
@@ -255,7 +261,7 @@ export const Sidebar = () => {
       <div className="p-3 border-t border-white/10 shrink-0 space-y-2">
         <div
           className={`flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10 ${
-            sidebarCollapsed ? 'justify-center' : ''
+            sidebarCollapsed ? "justify-center" : ""
           }`}
         >
           {/* Settings-style Initials Avatar with Online Badge */}
@@ -273,10 +279,16 @@ export const Sidebar = () => {
           {/* Dynamic Full Name & Role */}
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-xs font-bold text-white truncate" title={fullName}>
+              <span
+                className="text-xs font-bold text-white truncate"
+                title={fullName}
+              >
                 {fullName}
               </span>
-              <span className="text-[10px] text-secondary-400 font-semibold truncate flex items-center gap-1" title={displayRole}>
+              <span
+                className="text-[10px] text-secondary-400 font-semibold truncate flex items-center gap-1"
+                title={displayRole}
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />
                 {displayRole}
               </span>
@@ -287,7 +299,7 @@ export const Sidebar = () => {
           {!sidebarCollapsed && (
             <button
               type="button"
-              onClick={logout}
+              onClick={handleLogout}
               className="p-1.5 rounded-lg text-primary-200 hover:text-rose-300 hover:bg-white/10 transition-colors cursor-pointer"
               title="Sign Out"
             >
@@ -324,7 +336,7 @@ export const Sidebar = () => {
       {/* Desktop Animated Sidebar */}
       <motion.aside
         animate={{ width: sidebarCollapsed ? 80 : 260 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
         className="hidden lg:block h-screen sticky top-0 bg-purple-950 z-30 shrink-0 overflow-hidden"
       >
         {navContent}
@@ -349,7 +361,7 @@ export const Sidebar = () => {
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
               className="relative w-72 max-w-[85vw] h-full bg-purple-950 shadow-2xl z-10"
             >
               {navContent}

@@ -30,6 +30,7 @@ type TeacherResponse struct {
 type TeacherListResponse struct {
 	Message string            `json:"message" example:"Request successful"`
 	Data    []TeacherResponse `json:"data"`
+	Meta    PaginationMeta    `json:"meta"`
 }
 
 // TeacherDataResponse is returned by GetTeacher.
@@ -116,31 +117,19 @@ func toTeacherResponse(teacher models.User) TeacherResponse {
 func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 	var teachers []models.User
 
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-
-	if page <= 0 {
-		page = 1
-	}
-
-	perPage, _ := strconv.Atoi(r.URL.Query().Get("perPage"))
-
-	switch {
-	case perPage <= 0:
-		perPage = 20
-	case perPage > 50:
-		perPage = 50
-	}
-
-	offset := (page - 1) * perPage
+	page, perPage, offset := parsePagination(r)
 
 	showDeleted, _ := strconv.ParseBool(r.URL.Query().Get("isDeleted"))
+	search := r.URL.Query().Get("search")
 
-	// GORM's soft-delete scope hides rows with deleted_at set unless Unscoped is used,
-	// so deleted teachers are only visible when explicitly requested.
 	scope := func() *gorm.DB {
 		q := h.DB.Model(&models.User{}).Where("role_id = ?", 2)
 		if showDeleted {
 			q = q.Unscoped()
+		}
+		if search != "" {
+			like := "%" + search + "%"
+			q = q.Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?", like, like, like)
 		}
 		return q
 	}
@@ -167,8 +156,8 @@ func (h *Handler) GetAllTeachers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, TeacherListResponse{
 		Message: "Request successful",
 		Data:    response,
+		Meta:    newPaginationMeta(totalRecords, page, perPage),
 	})
-
 }
 
 // GetTeacher godoc

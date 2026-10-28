@@ -14,9 +14,11 @@ export const getCourse = async (id) => {
     return response.data;
 };
 
-// Accepts { isDeleted: true/false }, defaults to false
-export const getCourses = async ({ isDeleted = false } = {}) => {
-    const response = await axiosInstance.get(`/api/admin/courses?isDeleted=${isDeleted}`);
+// Accepts { isDeleted, search, page, perPage }
+export const getCourses = async ({ isDeleted = false, search = "", page = 1, perPage = 20 } = {}) => {
+    const params = { isDeleted, page, perPage };
+    if (search) params.search = search;
+    const response = await axiosInstance.get("/api/admin/courses", { params });
     return response.data;
 };
 
@@ -70,8 +72,10 @@ export const getTeacher = async (teacherId) => {
     return response.data;
 };
 
-export const getTeachers = async ({ isDeleted = false } = {}) => {
-    const response = await axiosInstance.get(`/api/admin/teachers?isDeleted=${isDeleted}`);
+export const getTeachers = async ({ isDeleted = false, search = "", page = 1, perPage = 20 } = {}) => {
+    const params = { isDeleted, page, perPage };
+    if (search) params.search = search;
+    const response = await axiosInstance.get("/api/admin/teachers", { params });
     return response.data;
 };
 
@@ -125,10 +129,10 @@ export const getStudent = async (id) => {
     return response.data;
 };
 
-export const getStudents = async ({ page = 1, perPage = 20, isDeleted = false } = {}) => {
-    const response = await axiosInstance.get("/api/admin/students", {
-        params: { page, perPage, isDeleted },
-    });
+export const getStudents = async ({ page = 1, perPage = 20, isDeleted = false, search = "" } = {}) => {
+    const params = { page, perPage, isDeleted };
+    if (search) params.search = search;
+    const response = await axiosInstance.get("/api/admin/students", { params });
     return response.data;
 };
 

@@ -125,12 +125,14 @@ const matchId = (item, targetId) =>
 // ----------------------------------------------------------------------------------
 export const useAdminCourses = (params = {}, options = {}) => {
   const isDeleted = Boolean(params?.isDeleted);
-  const queryOptions = { ...params, ...options };
-  delete queryOptions.isDeleted;
+  const search = params?.search || "";
+  const page = params?.page || 1;
+  const perPage = params?.perPage || 20;
   return useQuery({
-    queryKey: ADMIN_KEYS.courses({ isDeleted }),
-    queryFn: () => getCourses({ isDeleted }),
-    ...queryOptions,
+    queryKey: ADMIN_KEYS.courses({ isDeleted, search, page, perPage }),
+    queryFn: () => getCourses({ isDeleted, search, page, perPage }),
+    placeholderData: (prev) => prev,
+    ...options,
   });
 };
 
@@ -251,10 +253,11 @@ const matchTeacherId = (item, targetId) =>
 
 export const useAdminTeachers = (params = {}, options = {}) => {
   const queryParams = typeof params === "boolean" ? { isDeleted: params } : params;
-  const { isDeleted = false, ...restParams } = queryParams;
+  const { isDeleted = false, search = "", page = 1, perPage = 20, ...restParams } = queryParams;
   return useQuery({
-    queryKey: ADMIN_KEYS.teachers ? ADMIN_KEYS.teachers({ isDeleted, ...restParams }) : ["adminTeachers", { isDeleted, ...restParams }],
-    queryFn: () => getTeachers({ isDeleted, ...restParams }),
+    queryKey: ADMIN_KEYS.teachers({ isDeleted, search, page, perPage, ...restParams }),
+    queryFn: () => getTeachers({ isDeleted, search, page, perPage, ...restParams }),
+    placeholderData: (prev) => prev,
     ...options,
   });
 };
@@ -380,13 +383,13 @@ const matchStudentId = (item, targetId) =>
 // ----------------------------------------------------------------------------------
 // 1. Fetch Students (supports pagination: page, perPage, and isDeleted: true/false)
 export const useAdminStudents = (params = {}, options = {}) => {
-  const { page = 1, perPage = 20, isDeleted = false, ...restParams } = params;
-  const queryParams = { page, perPage, isDeleted, ...restParams };
-  const queryOptions = { ...options };
+  const { page = 1, perPage = 20, isDeleted = false, search = "", ...restParams } = params;
+  const queryParams = { page, perPage, isDeleted, search, ...restParams };
   return useQuery({
     queryKey: ADMIN_KEYS.students(queryParams),
     queryFn: () => getStudents(queryParams),
-    ...queryOptions,
+    placeholderData: (prev) => prev,
+    ...options,
   });
 };
 // 2. Fetch Single Student by ID
