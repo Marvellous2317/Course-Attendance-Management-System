@@ -110,7 +110,7 @@ export default function StudentModals({
               </h2>
               <p className="text-xs text-slate-500 mt-1">
                 {selectedCourse.department} •{' '}
-                {selectedCourse.credits.toFixed(1)} Academic Units
+                {(selectedCourse.credits ?? 0).toFixed(1)} Academic Units
               </p>
 
               {/* Schedule strip */}
