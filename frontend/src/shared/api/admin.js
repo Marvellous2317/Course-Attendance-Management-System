@@ -215,6 +215,16 @@ export const createAdminOffering = async (payload) => {
   return response.data;
 };
 
+export const updateAdminOffering = async (id, payload) => {
+  const response = await axiosInstance.patch(`/api/admin/offerings/${id}`, payload);
+  return response.data;
+};
+
+export const deleteAdminOffering = async (id) => {
+  const response = await axiosInstance.delete(`/api/admin/offerings/${id}`);
+  return response.data;
+};
+
 export const getAdminStudentEnrollments = async (studentId, params = {}) => {
   const response = await axiosInstance.get(
     `/api/admin/students/${studentId}/enrollments`,

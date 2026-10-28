@@ -29,8 +29,17 @@ export const useUIStore = create((set) => ({
   closeModal: () => set({ activeModal: null, modalData: null }),
 
   isAttendanceModalOpen: false,
+  // Which offering/session the attendance modal should open on.
+  attendanceTarget: null,
+  setAttendanceTarget: (attendanceTarget) => set({ attendanceTarget }),
   setIsAttendanceModalOpen: (isAttendanceModalOpen) =>
-    set({ isAttendanceModalOpen }),
+    set(
+      isAttendanceModalOpen
+        ? { isAttendanceModalOpen }
+        : { isAttendanceModalOpen, attendanceTarget: null }
+    ),
+  openAttendanceModal: (attendanceTarget = null) =>
+    set({ attendanceTarget, isAttendanceModalOpen: true }),
 
   isNewCourseModalOpen: false,
   setIsNewCourseModalOpen: (isNewCourseModalOpen) =>

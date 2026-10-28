@@ -37,6 +37,8 @@ import {
   getAdminStudentEnrollments,
   getAdminOfferings,
   createAdminOffering,
+  updateAdminOffering,
+  deleteAdminOffering,
 } from "../api/admin";
 
 
@@ -706,6 +708,32 @@ export const useCreateAdminOffering = (options = {}) => {
   const { onSuccess, ...restOptions } = options;
   return useMutation({
     mutationFn: createAdminOffering,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allOfferings });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+
+export const useUpdateAdminOffering = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: ({ id, payload }) => updateAdminOffering(id, payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allOfferings });
+      onSuccess?.(data, variables, context);
+    },
+    ...restOptions,
+  });
+};
+
+export const useDeleteAdminOffering = (options = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options;
+  return useMutation({
+    mutationFn: deleteAdminOffering,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.allOfferings });
       onSuccess?.(data, variables, context);

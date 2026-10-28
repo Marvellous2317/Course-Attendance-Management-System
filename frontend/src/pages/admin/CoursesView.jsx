@@ -35,11 +35,14 @@ import { formatCourseDate } from "../../shared/utils/date";
 import {
   useAdminCourses,
   useAdminTeachers,
+  useAdminOfferings,
   useDeleteCourse,
   useRestoreCourse,
   useAdminCourseStudents,
   useAdminCourseTeachers,
   useCreateAdminOffering,
+  useUpdateAdminOffering,
+  useDeleteAdminOffering,
 } from "../../shared/hooks/useAdmin";
 
 // Defensive ID extractor (handles _id, id, courseId)
@@ -751,6 +754,53 @@ export default function CoursesView() {
     });
   };
 
+  // ---------------------------------------------------------------------------
+  // Offerings Tab: query, edit, delete
+  // ---------------------------------------------------------------------------
+  const [offeringsPage, setOfferingsPage] = useState(1);
+  const [offeringsSearch, setOfferingsSearch] = useState("");
+  const deferredOfferingsSearch = useDeferredValue(offeringsSearch);
+  const [offeringToEdit, setOfferingToEdit] = useState(null);
+  const [editOfferingForm, setEditOfferingForm] = useState({});
+  const [offeringToDelete, setOfferingToDelete] = useState(null);
+
+  const {
+    data: offeringsData,
+    isLoading: isLoadingOfferings,
+  } = useAdminOfferings(
+    { search: deferredOfferingsSearch, page: offeringsPage, perPage: 10 },
+    { enabled: activeTab === "Offerings" },
+  );
+  const offeringsList = useMemo(() => {
+    if (!offeringsData) return [];
+    if (Array.isArray(offeringsData)) return offeringsData;
+    if (Array.isArray(offeringsData?.data)) return offeringsData.data;
+    return [];
+  }, [offeringsData]);
+  const offeringsMeta = offeringsData?.meta || {};
+
+  const { mutate: updateOfferingMutation, isPending: isUpdatingOffering } =
+    useUpdateAdminOffering({
+      onSuccess: () => {
+        showToast("Offering updated", "success");
+        setOfferingToEdit(null);
+      },
+      onError: (err) => {
+        showToast(err?.response?.data?.error || "Failed to update offering", "error");
+      },
+    });
+
+  const { mutate: deleteOfferingMutation, isPending: isDeletingOffering } =
+    useDeleteAdminOffering({
+      onSuccess: () => {
+        showToast("Offering deleted", "success");
+        setOfferingToDelete(null);
+      },
+      onError: (err) => {
+        showToast(err?.response?.data?.error || "Failed to delete offering", "error");
+      },
+    });
+
   const handleOpenDeleteModal = (course) => setCourseToDelete(course);
   const handleCloseDeleteModal = () => !isDeleting && setCourseToDelete(null);
 
@@ -875,6 +925,19 @@ export default function CoursesView() {
                   {counts.deleted}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("Offerings")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  activeTab === "Offerings"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Offerings</span>
+              </button>
             </div>
 
             {/* Actions: Search & Add Course */}
@@ -917,8 +980,177 @@ export default function CoursesView() {
         </Card>
       </ScrollReveal>
 
+      {/* Offerings Tab Content */}
+      {activeTab === "Offerings" && (
+        <div className="space-y-4">
+          {/* Search bar for offerings */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search offerings by course, code, or batch..."
+                  value={offeringsSearch}
+                  onChange={(e) => { setOfferingsSearch(e.target.value); setOfferingsPage(1); }}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition-colors"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                iconLeft={<Layers className="w-4 h-4" />}
+                onClick={() => setShowOfferingModal(true)}
+                className="shrink-0 cursor-pointer"
+              >
+                Create Offering
+              </Button>
+            </div>
+          </Card>
+
+          {isLoadingOfferings ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+            </div>
+          ) : offeringsList.length === 0 ? (
+            <EmptyState
+              title={offeringsSearch ? "No offerings match search" : "No Course Offerings"}
+              description={
+                offeringsSearch
+                  ? `No offering found matching "${offeringsSearch}".`
+                  : "Create your first course offering to start enrolling students."
+              }
+              action={
+                !offeringsSearch ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    iconLeft={<Layers className="w-4 h-4" />}
+                    onClick={() => setShowOfferingModal(true)}
+                  >
+                    Create First Offering
+                  </Button>
+                ) : null
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {offeringsList.map((offering) => {
+                const course = offering.course || {};
+                const instructor = offering.instructor;
+                const instrName = instructor
+                  ? `${instructor.firstName || ""} ${instructor.lastName || ""}`.trim() || instructor.email
+                  : "Unassigned";
+
+                return (
+                  <Card key={offering.id} className="p-4 hover:border-slate-300 transition-all">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {course.code && (
+                            <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                              {course.code}
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {offering.batchCode}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900 truncate">
+                          {course.title || "Untitled Course"}
+                        </h4>
+                        <div className="flex items-center gap-4 text-[11px] text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <GraduationCap className="w-3 h-3" />
+                            {instrName}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {offering.duration} mins
+                          </span>
+                          <span>{offering.sessions} sessions</span>
+                          {offering.classDate && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(offering.classDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          iconLeft={<Pencil className="w-3.5 h-3.5 text-indigo-600" />}
+                          onClick={() => {
+                            setOfferingToEdit(offering);
+                            setEditOfferingForm({
+                              instructorId: String(offering.instructorId || ""),
+                              batchCode: offering.batchCode || "",
+                              classDate: offering.classDate ? new Date(offering.classDate).toISOString().split("T")[0] : "",
+                              startTime: offering.startTime ? new Date(offering.startTime).toTimeString().slice(0, 5) : "",
+                              duration: String(offering.duration || ""),
+                              sessions: String(offering.sessions || ""),
+                            });
+                          }}
+                          className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => setOfferingToDelete(offering)}
+                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Offerings Pagination */}
+          {offeringsList.length > 0 && (
+            <Card className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">
+                  Showing {offeringsList.length} of {offeringsMeta.totalRecords ?? 0} &middot; Page {offeringsPage} of {offeringsMeta.totalPages || 1}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={offeringsPage <= 1}
+                    onClick={() => setOfferingsPage((p) => Math.max(1, p - 1))}
+                    iconLeft={<ChevronLeft className="w-3.5 h-3.5" />}
+                    className="cursor-pointer"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={offeringsPage >= (offeringsMeta.totalPages || 1)}
+                    onClick={() => setOfferingsPage((p) => p + 1)}
+                    iconLeft={<ChevronRight className="w-3.5 h-3.5" />}
+                    className="cursor-pointer"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Courses Cards Grid */}
-      {filteredCourses.length === 0 ? (
+      {activeTab !== "Offerings" && filteredCourses.length === 0 && (
         <EmptyState
           title={
             activeTab === "Deleted"
@@ -951,7 +1183,8 @@ export default function CoursesView() {
             }
           }}
         />
-      ) : (
+      )}
+      {activeTab !== "Offerings" && filteredCourses.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredCourses.map((course, index) => {
             const courseId = getCourseId(course);
@@ -981,7 +1214,7 @@ export default function CoursesView() {
       )}
 
       {/* Pagination Controls */}
-      {filteredCourses.length > 0 && (
+      {activeTab !== "Offerings" && filteredCourses.length > 0 && (
         <Card className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">
@@ -1211,6 +1444,184 @@ export default function CoursesView() {
               className="cursor-pointer"
             >
               {isCreatingOffering ? "Creating..." : "Create Offering"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Offering Modal */}
+      <Modal
+        isOpen={Boolean(offeringToEdit)}
+        onClose={() => !isUpdatingOffering && setOfferingToEdit(null)}
+        title="Edit Course Offering"
+        subtitle={offeringToEdit ? `Batch: ${offeringToEdit.batchCode}` : ""}
+      >
+        {offeringToEdit && (
+          <div className="space-y-4">
+            {/* Instructor Select */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Instructor</label>
+              <select
+                value={editOfferingForm.instructorId}
+                onChange={(e) => setEditOfferingForm((f) => ({ ...f, instructorId: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              >
+                <option value="">Select an instructor...</option>
+                {teachersList.map((t) => {
+                  const tid = t.id ?? t.teacherId;
+                  const name = `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email;
+                  return (
+                    <option key={tid} value={tid}>{name}</option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Batch Code */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Batch Code</label>
+              <input
+                type="text"
+                maxLength={10}
+                value={editOfferingForm.batchCode}
+                onChange={(e) => setEditOfferingForm((f) => ({ ...f, batchCode: e.target.value }))}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+              />
+            </div>
+
+            {/* Class Date & Start Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Class Date</label>
+                <input
+                  type="date"
+                  value={editOfferingForm.classDate}
+                  onChange={(e) => setEditOfferingForm((f) => ({ ...f, classDate: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Start Time</label>
+                <input
+                  type="time"
+                  value={editOfferingForm.startTime}
+                  onChange={(e) => setEditOfferingForm((f) => ({ ...f, startTime: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Duration & Sessions */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Duration (mins)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editOfferingForm.duration}
+                  onChange={(e) => setEditOfferingForm((f) => ({ ...f, duration: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Sessions</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editOfferingForm.sessions}
+                  onChange={(e) => setEditOfferingForm((f) => ({ ...f, sessions: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setOfferingToEdit(null)}
+                disabled={isUpdatingOffering}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={isUpdatingOffering}
+                onClick={() => {
+                  const payload = {};
+                  if (editOfferingForm.instructorId) payload.instructorId = Number(editOfferingForm.instructorId);
+                  if (editOfferingForm.batchCode) payload.batchCode = editOfferingForm.batchCode;
+                  if (editOfferingForm.classDate) payload.classDate = editOfferingForm.classDate + "T00:00:00Z";
+                  if (editOfferingForm.startTime) payload.startTime = "2000-01-01T" + editOfferingForm.startTime + ":00Z";
+                  if (editOfferingForm.duration) payload.duration = Number(editOfferingForm.duration);
+                  if (editOfferingForm.sessions) payload.sessions = Number(editOfferingForm.sessions);
+                  updateOfferingMutation({ id: offeringToEdit.id, ...payload });
+                }}
+                iconLeft={
+                  isUpdatingOffering ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Pencil className="w-4 h-4" />
+                  )
+                }
+                className="cursor-pointer"
+              >
+                {isUpdatingOffering ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Offering Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(offeringToDelete)}
+        onClose={() => !isDeletingOffering && setOfferingToDelete(null)}
+        title="Delete Offering"
+        subtitle="Confirm offering removal"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Are you sure you want to delete offering{" "}
+            <span className="font-bold text-slate-900">
+              {offeringToDelete?.batchCode}
+            </span>
+            {offeringToDelete?.course?.title && (
+              <>
+                {" "}for course{" "}
+                <span className="font-semibold text-indigo-700">{offeringToDelete.course.title}</span>
+              </>
+            )}
+            ? This action will soft-delete the offering.
+          </p>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isDeletingOffering}
+              onClick={() => setOfferingToDelete(null)}
+              className="cursor-pointer"
+            >
+              No, Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={isDeletingOffering}
+              onClick={() => deleteOfferingMutation(offeringToDelete.id)}
+              iconLeft={
+                isDeletingOffering ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )
+              }
+              className="bg-rose-600 hover:bg-rose-700 text-white border-transparent cursor-pointer"
+            >
+              {isDeletingOffering ? "Deleting..." : "Yes, Delete Offering"}
             </Button>
           </div>
         </div>

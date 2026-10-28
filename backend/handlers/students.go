@@ -754,3 +754,138 @@ func (h *Handler) GetAdminOfferings(w http.ResponseWriter, r *http.Request) {
 		Meta:    newPaginationMeta(total, page, perPage),
 	})
 }
+
+// UpdateAdminOfferingRequest is the payload for updating a course offering. Empty fields are left unchanged.
+type UpdateAdminOfferingRequest struct {
+	InstructorID *uint      `json:"instructorId,omitempty"`
+	ClassDate    *time.Time `json:"classDate,omitempty"`
+	StartTime    *time.Time `json:"startTime,omitempty"`
+	Duration     *int       `json:"duration,omitempty"`
+	Sessions     *int       `json:"sessions,omitempty"`
+	BatchCode    *string    `json:"batchCode,omitempty"`
+}
+
+// UpdateAdminOffering godoc
+// @Summary      Update a course offering (admin)
+// @Description  Updates fields on an existing course offering. Only supplied fields are changed.
+// @Tags         students
+// @Accept       json
+// @Produce      json
+// @Param        id       path  int                           true  "Offering ID"
+// @Param        request  body  UpdateAdminOfferingRequest    true  "Fields to update"
+// @Success      200  {object}  OfferingDataResponse
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/offerings/{id} [patch]
+func (h *Handler) UpdateAdminOffering(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid offering ID"})
+		return
+	}
+
+	var offering models.CourseOffering
+	if err := h.DB.First(&offering, id).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Offering not found"})
+		return
+	}
+
+	var input UpdateAdminOfferingRequest
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if input.InstructorID != nil {
+		var instructor models.User
+		if err := h.DB.Where("role_id = ?", 2).First(&instructor, *input.InstructorID).Error; err != nil {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Instructor not found"})
+			return
+		}
+		offering.InstructorID = *input.InstructorID
+	}
+	if input.BatchCode != nil {
+		code := strings.TrimSpace(*input.BatchCode)
+		if code == "" || len(code) > 10 {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "batchCode must be 1-10 characters"})
+			return
+		}
+		var existing models.CourseOffering
+		if err := h.DB.Unscoped().Where("batch_code = ? AND id != ?", code, offering.ID).First(&existing).Error; err == nil {
+			writeJSON(w, http.StatusConflict, ErrorResponse{Error: "Batch code already exists"})
+			return
+		}
+		offering.BatchCode = code
+	}
+	if input.ClassDate != nil {
+		offering.ClassDate = *input.ClassDate
+	}
+	if input.StartTime != nil {
+		offering.StartTime = *input.StartTime
+	}
+	if input.Duration != nil {
+		if *input.Duration <= 0 {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "duration must be greater than 0"})
+			return
+		}
+		offering.Duration = *input.Duration
+	}
+	if input.Sessions != nil {
+		if *input.Sessions <= 0 {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "sessions must be greater than 0"})
+			return
+		}
+		offering.Sessions = *input.Sessions
+	}
+
+	if err := h.DB.Save(&offering).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if err := h.DB.Preload("Course.CreatedByUser").Preload("Instructor").First(&offering, offering.ID).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, OfferingDataResponse{
+		Message: "Request successful",
+		Data:    toOfferingResponse(offering),
+	})
+}
+
+// DeleteAdminOffering godoc
+// @Summary      Delete a course offering (admin)
+// @Description  Soft-deletes a course offering. Students enrolled in this offering lose access.
+// @Tags         students
+// @Produce      json
+// @Param        id  path  int  true  "Offering ID"
+// @Success      204  "No Content"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/offerings/{id} [delete]
+func (h *Handler) DeleteAdminOffering(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid offering ID"})
+		return
+	}
+
+	var offering models.CourseOffering
+	if err := h.DB.First(&offering, id).Error; err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Offering not found"})
+		return
+	}
+
+	if err := h.DB.Delete(&offering).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusNoContent, nil)
+}

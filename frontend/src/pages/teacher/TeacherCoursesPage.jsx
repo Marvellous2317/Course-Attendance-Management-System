@@ -647,7 +647,7 @@ function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
           id="offering-batch-code"
           type="text"
           required
-          maxLength={MAX_BATCH_CODE_LENGTH}
+          maxLength={MAX_BATCH_CODE_L ENGTH}
           value={batchCode}
           onChange={(e) => {
             setBatchCode(e.target.value);
@@ -721,7 +721,6 @@ function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
             id="offering-duration"
             type="number"
             min={1}
-            step={5}
             required
             value={duration}
             onChange={(e) => {
@@ -744,7 +743,6 @@ function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
             id="offering-sessions"
             type="number"
             min={1}
-            step={1}
             required
             value={sessions}
             onChange={(e) => {
@@ -812,6 +810,21 @@ export default function TeacherCoursesPage() {
 
   // Track which course is selected for the "View Students" modal
   const [targetCourseForStudents, setTargetCourseForStudents] = useState(null);
+
+  // Create offering (batch) modal: null = closed, { courseId } or { courseId: null } when open
+  const [offeringTargetCourseId, setOfferingTargetCourseId] = useState(null);
+  const [isCreateOfferingOpen, setIsCreateOfferingOpen] = useState(false);
+
+  const openCreateOffering = (course = null) => {
+    setOpenMenuCourseId(null);
+    setOfferingTargetCourseId(course?.id ?? null);
+    setIsCreateOfferingOpen(true);
+  };
+
+  const closeCreateOffering = () => {
+    setIsCreateOfferingOpen(false);
+    setOfferingTargetCourseId(null);
+  };
 
   // Close 3-dots menus when clicking outside
   useEffect(() => {
@@ -898,7 +911,30 @@ export default function TeacherCoursesPage() {
           </p>
         </div>
 
-        
+        {/* Global Action Controls */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="p-2.5 rounded-xl bg-white border border-slate-200/90 text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            title="Refresh courses"
+          >
+            <RotateCw
+              className={`w-4 h-4 ${isFetching ? "animate-spin text-secondary-500" : ""}`}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openCreateOffering(null)}
+            disabled={courses.length === 0}
+            className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-slate-900/10 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4 text-secondary-500" />
+            <span>New Course Offering</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Search Filter */}
@@ -995,6 +1031,7 @@ export default function TeacherCoursesPage() {
                   setTargetCourseForStudents({ course: c, offerings: offs })
                 }
                 onTakeAttendance={() => setIsAttendanceModalOpen?.(true)}
+                onCreateOffering={openCreateOffering}
                 openMenuCourseId={openMenuCourseId}
                 setOpenMenuCourseId={setOpenMenuCourseId}
                 showToast={showToast}
@@ -1053,6 +1090,31 @@ export default function TeacherCoursesPage() {
           <CourseStudentsRosterModal
             target={targetCourseForStudents}
             onClose={() => setTargetCourseForStudents(null)}
+          />
+        )}
+      </Modal>
+
+      {/* 9. Create Course Offering Modal */}
+      <Modal
+        isOpen={isCreateOfferingOpen}
+        onClose={closeCreateOffering}
+        title="Create Course Offering"
+        subtitle={
+          offeringTargetCourseId
+            ? `${
+                courses.find(
+                  (c) => String(c.id) === String(offeringTargetCourseId)
+                )?.code || ""
+              } - Schedule a new batch for this course`
+            : "Schedule a new batch students can enroll in"
+        }
+      >
+        {isCreateOfferingOpen && (
+          <CreateOfferingModal
+            key={offeringTargetCourseId ?? "any"}
+            courses={courses}
+            initialCourseId={offeringTargetCourseId}
+            onClose={closeCreateOffering}
           />
         )}
       </Modal>

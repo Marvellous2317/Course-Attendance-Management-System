@@ -108,7 +108,7 @@ const getRelativeCountdown = (startIso) => {
 // ==============================================================================
 
 export default function TeacherSchedulePage() {
-  const { setIsAttendanceModalOpen } = useUIStore();
+  const { setIsAttendanceModalOpen, setTeacherTab } = useUIStore();
   const { showToast } = useToast();
 
   // View States
@@ -355,6 +355,11 @@ export default function TeacherSchedulePage() {
               setIsScheduleModalOpen(true);
             }}
             disabled={offerings.length === 0}
+            title={
+              offerings.length === 0
+                ? 'Create a course offering first'
+                : 'Schedule a class session'
+            }
             className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-slate-900/10 transition-all cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-4 h-4 text-secondary-500" />
@@ -521,9 +526,18 @@ export default function TeacherSchedulePage() {
                 <span>Loading cohorts...</span>
               </div>
             ) : offerings.length === 0 ? (
-              <span className="text-xs font-semibold text-slate-500">
-                No course offerings assigned
-              </span>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <span className="text-xs font-semibold text-slate-500">
+                  No course offerings assigned
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTeacherTab?.('courses')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
+                >
+                  Create offering
+                </button>
+              </div>
             ) : (
               <select
                 id="cohort-select"
@@ -631,24 +645,38 @@ export default function TeacherSchedulePage() {
           </div>
           <div>
             <h3 className="font-bold text-base text-slate-900">
-              No Class Sessions Scheduled
+              {offerings.length === 0
+                ? 'No Course Offering Scheduled'
+                : 'No Class Sessions Scheduled'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              There are no class sessions recorded for this cohort yet. Click
-              below to schedule a new lecture session.
+              {offerings.length === 0
+                ? 'Class sessions belong to a course offering (batch). Create an offering for one of your courses, then schedule its lectures.'
+                : 'There are no class sessions recorded for this cohort yet. Click below to schedule a new lecture session.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError('');
-              setIsScheduleModalOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-          >
-            <Plus className="w-4 h-4 text-secondary-500" />
-            <span>Schedule First Session</span>
-          </button>
+          {offerings.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setTeacherTab?.('courses')}
+              className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            >
+              <Plus className="w-4 h-4 text-secondary-500" />
+              <span>Create Course Offering</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setFormError('');
+                setIsScheduleModalOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            >
+              <Plus className="w-4 h-4 text-secondary-500" />
+              <span>Schedule First Session</span>
+            </button>
+          )}
         </div>
       ) : scheduleView === 'agenda' ? (
         /* ====================================================================

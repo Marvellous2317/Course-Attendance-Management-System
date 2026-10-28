@@ -1,41 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  X,
-  Check,
-  Download,
-  Sparkles,
-  CheckCircle2,
-  Search,
-} from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import { useUIStore } from '../../shared/store/useUIStore';
 import useToast from '../../shared/hooks/useToast';
-import { initialAttendanceRecords } from '../../data/mockData';
+import TeacherAttendanceModal from './TeacherAttendanceModal';
 export default function TeacherModals() {
-  const {
-    isAttendanceModalOpen,
-    setIsAttendanceModalOpen,
-    isNewCourseModalOpen,
-    setIsNewCourseModalOpen,
-  } = useUIStore();
+  const { isNewCourseModalOpen, setIsNewCourseModalOpen } = useUIStore();
   const { showToast } = useToast();
-  const [attendanceRecords, setAttendanceRecords] = useState(initialAttendanceRecords);
-  const updateAttendanceStatus = (id, status) => {
-    setAttendanceRecords((prev) =>
-      prev.map((rec) => (rec.id === id ? { ...rec, status } : rec))
-    );
-  };
-  const markAllPresent = () => {
-    setAttendanceRecords((prev) =>
-      prev.map((rec) => ({ ...rec, status: 'PRESENT' }))
-    );
-    showToast('Marked all students as Present', 'success');
-  };
   const addTeacherCourse = () => {
     showToast('Course provisioned successfully', 'success');
   };
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [searchStudent, setSearchStudent] = useState('');
   const [courseCode, setCourseCode] = useState('CS-520');
   const [courseTitle, setCourseTitle] = useState(
     'Distributed Systems & Consensus Protocols',
