@@ -155,17 +155,19 @@ function TeacherCourseCardItem({
                     <span>View Enrolled Students</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenMenuCourseId(null);
-                      onTakeAttendance(primaryOffering || course);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Take Attendance</span>
-                  </button>
+                  {primaryOffering && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenMenuCourseId(null);
+                        onTakeAttendance(primaryOffering);
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Take Attendance</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -238,7 +240,7 @@ function TeacherCourseCardItem({
         {primaryOffering ? (
           <button
             type="button"
-            onClick={() => onTakeAttendance(primaryOffering || course)}
+            onClick={() => onTakeAttendance(primaryOffering)}
             className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
           >
             Take Attendance
@@ -647,7 +649,7 @@ function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
           id="offering-batch-code"
           type="text"
           required
-          maxLength={MAX_BATCH_CODE_L ENGTH}
+          maxLength={MAX_BATCH_CODE_LENGTH}
           value={batchCode}
           onChange={(e) => {
             setBatchCode(e.target.value);
@@ -798,7 +800,7 @@ function CreateOfferingModal({ courses = [], initialCourseId, onClose }) {
 // Main TeacherCoursesPage Component
 // =============================================================================
 export default function TeacherCoursesPage() {
-  const { setIsNewCourseModalOpen, setIsAttendanceModalOpen } = useUIStore();
+  const { setIsNewCourseModalOpen, openAttendanceModal } = useUIStore();
   const { showToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -1030,7 +1032,9 @@ export default function TeacherCoursesPage() {
                 onViewStudents={(c, offs) =>
                   setTargetCourseForStudents({ course: c, offerings: offs })
                 }
-                onTakeAttendance={() => setIsAttendanceModalOpen?.(true)}
+                onTakeAttendance={(offering) =>
+                  openAttendanceModal({ offeringId: offering?.id ?? null })
+                }
                 onCreateOffering={openCreateOffering}
                 openMenuCourseId={openMenuCourseId}
                 setOpenMenuCourseId={setOpenMenuCourseId}

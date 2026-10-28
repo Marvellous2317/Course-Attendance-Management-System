@@ -705,7 +705,7 @@ export default function CoursesView() {
   // Fetch teachers for the offering form instructor dropdown
   const { data: teachersData } = useAdminTeachers(
     { isDeleted: false, perPage: 100 },
-    { enabled: showOfferingModal },
+    { enabled: showOfferingModal || Boolean(offeringToEdit) },
   );
   const teachersList = useMemo(() => {
     if (!teachersData) return [];
@@ -1020,18 +1020,14 @@ export default function CoursesView() {
                   ? `No offering found matching "${offeringsSearch}".`
                   : "Create your first course offering to start enrolling students."
               }
-              action={
-                !offeringsSearch ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    iconLeft={<Layers className="w-4 h-4" />}
-                    onClick={() => setShowOfferingModal(true)}
-                  >
-                    Create First Offering
-                  </Button>
-                ) : null
-              }
+              actionLabel={offeringsSearch ? "Reset Search" : "Create First Offering"}
+              onAction={() => {
+                if (offeringsSearch) {
+                  setOfferingsSearch("");
+                } else {
+                  setShowOfferingModal(true);
+                }
+              }}
             />
           ) : (
             <div className="space-y-3">
@@ -1557,7 +1553,7 @@ export default function CoursesView() {
                   if (editOfferingForm.startTime) payload.startTime = "2000-01-01T" + editOfferingForm.startTime + ":00Z";
                   if (editOfferingForm.duration) payload.duration = Number(editOfferingForm.duration);
                   if (editOfferingForm.sessions) payload.sessions = Number(editOfferingForm.sessions);
-                  updateOfferingMutation({ id: offeringToEdit.id, ...payload });
+                  updateOfferingMutation({ id: offeringToEdit.id, payload });
                 }}
                 iconLeft={
                   isUpdatingOffering ? (

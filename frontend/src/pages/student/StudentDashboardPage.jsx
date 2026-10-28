@@ -33,7 +33,7 @@ export default function StudentDashboardPage({
     staleTime: 1000 * 60 * 5,
   });
 
-  const profileUser = profileResponse?.data || profileResponse || currentUser;
+  const profileUser = profileResponse?.data || profileResponse || {};
 
   const displayName =
     profileUser?.firstName

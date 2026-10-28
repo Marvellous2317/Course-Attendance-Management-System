@@ -108,7 +108,7 @@ const getRelativeCountdown = (startIso) => {
 // ==============================================================================
 
 export default function TeacherSchedulePage() {
-  const { setIsAttendanceModalOpen, setTeacherTab } = useUIStore();
+  const { openAttendanceModal, setTeacherTab } = useUIStore();
   const { showToast } = useToast();
 
   // View States
@@ -481,16 +481,12 @@ export default function TeacherSchedulePage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (setIsAttendanceModalOpen) {
-                        setIsAttendanceModalOpen(true);
-                      } else {
-                        showToast(
-                          `Launching attendance for ${nextSession.topic}`,
-                          'info'
-                        );
-                      }
-                    }}
+                    onClick={() =>
+                      openAttendanceModal({
+                        offeringId: currentOffering?.id ?? selectedOfferingId,
+                        sessionId: nextSession.id,
+                      })
+                    }
                     className="text-[11px] font-bold text-amber-300 hover:text-white underline cursor-pointer"
                   >
                     Take Attendance →
@@ -791,16 +787,13 @@ export default function TeacherSchedulePage() {
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (setIsAttendanceModalOpen) {
-                          setIsAttendanceModalOpen(true);
-                        } else {
-                          showToast(
-                            `Opening attendance log for ${session.topic}`,
-                            'info'
-                          );
-                        }
-                      }}
+                      onClick={() =>
+                        openAttendanceModal({
+                          offeringId:
+                            currentOffering?.id ?? selectedOfferingId,
+                          sessionId: session.id,
+                        })
+                      }
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                         status.type === 'live'
                           ? 'bg-secondary-500 hover:bg-secondary-600 text-slate-950 font-black shadow-md'
@@ -921,16 +914,13 @@ export default function TeacherSchedulePage() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (setIsAttendanceModalOpen) {
-                              setIsAttendanceModalOpen(true);
-                            } else {
-                              showToast(
-                                `Taking attendance for ${session.topic}`,
-                                'info'
-                              );
-                            }
-                          }}
+                          onClick={() =>
+                            openAttendanceModal({
+                              offeringId:
+                                currentOffering?.id ?? selectedOfferingId,
+                              sessionId: session.id,
+                            })
+                          }
                           className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                             status.type === 'live'
                               ? 'bg-secondary-500 hover:bg-secondary-600 text-slate-950'

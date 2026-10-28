@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   AlertCircle,
   Calendar,
@@ -896,12 +896,14 @@ export default function TeacherAttendanceModal() {
   const isOpen = useUIStore((state) => state.isAttendanceModalOpen);
   const target = useUIStore((state) => state.attendanceTarget);
 
-  if (!isOpen) return null;
-
   return (
-    <AttendanceModalContent
-      key={`${target?.offeringId ?? "any"}:${target?.sessionId ?? "any"}`}
-      target={target}
-    />
+    <AnimatePresence>
+      {isOpen && (
+        <AttendanceModalContent
+          key={`${target?.offeringId ?? "any"}:${target?.sessionId ?? "any"}`}
+          target={target}
+        />
+      )}
+    </AnimatePresence>
   );
 }
