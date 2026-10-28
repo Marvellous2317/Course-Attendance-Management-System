@@ -57,7 +57,11 @@ const getTeacherName = (t) => {
 
 // Fallback avatar with initials
 const getTeacherAvatar = (t, name) => {
-  if (t?.avatar && typeof t.avatar === "string" && t.avatar.startsWith("http")) {
+  if (
+    t?.avatar &&
+    typeof t.avatar === "string" &&
+    t.avatar.startsWith("http")
+  ) {
     return t.avatar;
   }
   const encodedName = encodeURIComponent(name || "Teacher");
@@ -83,11 +87,16 @@ const getTeacherCourses = (teacher, allCourses = []) => {
       return {
         id: courseObj.id ?? courseObj._id ?? item.id,
         code: courseObj.code ?? "",
-        title: courseObj.title ?? courseObj.name ?? `Course #${courseObj.id || item.id}`,
+        title:
+          courseObj.title ??
+          courseObj.name ??
+          `Course #${courseObj.id || item.id}`,
       };
     }
 
-    const match = allCourses.find((c) => String(c.id ?? c._id) === String(item));
+    const match = allCourses.find(
+      (c) => String(c.id ?? c._id) === String(item),
+    );
     return {
       id: item,
       code: match?.code ?? "",
@@ -164,7 +173,12 @@ export default function TeachersView() {
     isError: isErrorActive,
     error: activeError,
     refetch: refetchActive,
-  } = useAdminTeachers({ isDeleted: false, search: deferredSearch, page: activePage, perPage });
+  } = useAdminTeachers({
+    isDeleted: false,
+    search: deferredSearch,
+    page: activePage,
+    perPage,
+  });
 
   const {
     data: deletedData,
@@ -172,17 +186,23 @@ export default function TeachersView() {
     isError: isErrorDeleted,
     error: deletedError,
     refetch: refetchDeleted,
-  } = useAdminTeachers({ isDeleted: true, search: deferredSearch, page: deletedPage, perPage });
+  } = useAdminTeachers({
+    isDeleted: true,
+    search: deferredSearch,
+    page: deletedPage,
+    perPage,
+  });
 
   const { data: coursesData, isLoading: isLoadingCourses } = useAdminCourses({
     isDeleted: false,
   });
 
   const deferredAssignSearch = useDeferredValue(assignCourseSearch);
-  const { data: assignCoursesData, isLoading: isLoadingAssignCourses } = useAdminCourses(
-    { isDeleted: false, search: deferredAssignSearch },
-    { enabled: Boolean(teacherToAssign) }
-  );
+  const { data: assignCoursesData, isLoading: isLoadingAssignCourses } =
+    useAdminCourses(
+      { isDeleted: false, search: deferredAssignSearch },
+      { enabled: Boolean(teacherToAssign) },
+    );
 
   const coursesList = useMemo(() => {
     if (!coursesData) return [];
@@ -201,8 +221,14 @@ export default function TeachersView() {
     return [];
   }, [assignCoursesData, coursesData]);
 
-  const activeTeachers = useMemo(() => normalizeTeachers(activeData), [activeData]);
-  const deletedTeachers = useMemo(() => normalizeTeachers(deletedData), [deletedData]);
+  const activeTeachers = useMemo(
+    () => normalizeTeachers(activeData),
+    [activeData],
+  );
+  const deletedTeachers = useMemo(
+    () => normalizeTeachers(deletedData),
+    [deletedData],
+  );
 
   const activeMeta = activeData?.meta || {};
   const deletedMeta = deletedData?.meta || {};
@@ -212,15 +238,18 @@ export default function TeachersView() {
       all: activeMeta.totalRecords ?? activeTeachers.length,
       deleted: deletedMeta.totalRecords ?? deletedTeachers.length,
     }),
-    [activeTeachers, deletedTeachers, activeMeta, deletedMeta]
+    [activeTeachers, deletedTeachers, activeMeta, deletedMeta],
   );
 
-  const currentList = activeTab === "Deleted" ? deletedTeachers : activeTeachers;
+  const currentList =
+    activeTab === "Deleted" ? deletedTeachers : activeTeachers;
   const currentMeta = activeTab === "Deleted" ? deletedMeta : activeMeta;
   const currentPage = activeTab === "Deleted" ? deletedPage : activePage;
-  const setCurrentPage = activeTab === "Deleted" ? setDeletedPage : setActivePage;
+  const setCurrentPage =
+    activeTab === "Deleted" ? setDeletedPage : setActivePage;
   const totalPages = currentMeta.totalPages || 1;
-  const isLoading = activeTab === "Deleted" ? isLoadingDeleted : isLoadingActive;
+  const isLoading =
+    activeTab === "Deleted" ? isLoadingDeleted : isLoadingActive;
   const isError = activeTab === "Deleted" ? isErrorDeleted : isErrorActive;
   const error = activeTab === "Deleted" ? deletedError : activeError;
   const refetch = activeTab === "Deleted" ? refetchDeleted : refetchActive;
@@ -257,7 +286,7 @@ export default function TeachersView() {
         setAssignError(
           err.response?.data?.message ||
             err.response?.data?.error ||
-            "Failed to assign course. Please try again."
+            "Failed to assign course. Please try again.",
         );
       },
     });
@@ -274,7 +303,7 @@ export default function TeachersView() {
         setUnassignError(
           err.response?.data?.message ||
             err.response?.data?.error ||
-            "Failed to unassign course. Please try again."
+            "Failed to unassign course. Please try again.",
         );
       },
     });
@@ -306,7 +335,7 @@ export default function TeachersView() {
     setSelectedCourseIds((prev) =>
       prev.includes(courseId)
         ? prev.filter((id) => id !== courseId)
-        : [...prev, courseId]
+        : [...prev, courseId],
     );
     setAssignError("");
   };
@@ -329,7 +358,7 @@ export default function TeachersView() {
     const existing = getTeacherCourses(teacherToAssign, coursesList);
     const existingIds = existing.map((c) => Number(c.id)).filter(Boolean);
     const courseIds = Array.from(
-      new Set([...existingIds, ...selectedCourseIds.map(Number)])
+      new Set([...existingIds, ...selectedCourseIds.map(Number)]),
     );
 
     setAssignError("");
@@ -399,7 +428,9 @@ export default function TeachersView() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[360px] gap-3">
         <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-        <p className="text-sm text-slate-500 font-medium">Loading faculty records...</p>
+        <p className="text-sm text-slate-500 font-medium">
+          Loading faculty records...
+        </p>
       </div>
     );
   }
@@ -408,9 +439,13 @@ export default function TeachersView() {
     return (
       <Card className="p-8 text-center max-w-lg mx-auto my-12 border-rose-200 bg-rose-50/40">
         <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-slate-900">Failed to load faculty</h3>
+        <h3 className="text-base font-bold text-slate-900">
+          Failed to load faculty
+        </h3>
         <p className="text-xs text-slate-500 mt-1 mb-4">
-          {error?.response?.data?.message || error?.message || "An error occurred."}
+          {error?.response?.data?.message ||
+            error?.message ||
+            "An error occurred."}
         </p>
         <Button
           variant="outline"
@@ -430,12 +465,12 @@ export default function TeachersView() {
       {/* 1. Header & Title with Orange Category Tag */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-         
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
             Faculty Directory & Academic Staff
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage professors, assign teaching curricula, inspect batch courses, and manage faculty credentials.
+            Manage professors, assign teaching curricula, inspect batch courses,
+            and manage faculty credentials.
           </p>
         </div>
       </div>
@@ -523,22 +558,22 @@ export default function TeachersView() {
             activeTab === "Deleted"
               ? "No deleted faculty members"
               : searchQuery
-              ? "No faculty members match search"
-              : "No faculty members enrolled"
+                ? "No faculty members match search"
+                : "No faculty members enrolled"
           }
           description={
             activeTab === "Deleted"
               ? "Deleted faculty records appear here where you can restore them."
               : searchQuery
-              ? `No faculty member found matching "${searchQuery}".`
-              : "Get started by registering your first faculty member."
+                ? `No faculty member found matching "${searchQuery}".`
+                : "Get started by registering your first faculty member."
           }
           actionLabel={
             activeTab === "Deleted"
               ? "View Active Faculty"
               : searchQuery
-              ? "Reset Search"
-              : "Add Teacher"
+                ? "Reset Search"
+                : "Add Teacher"
           }
           onAction={() => {
             if (activeTab === "Deleted") {
@@ -561,7 +596,10 @@ export default function TeachersView() {
             const teacherCourses = getTeacherCourses(teacher, coursesList);
 
             return (
-              <ScrollReveal key={currentId || index} delay={0.03 * (index % 12)}>
+              <ScrollReveal
+                key={currentId || index}
+                delay={0.03 * (index % 12)}
+              >
                 <Card
                   className="p-4 h-full flex flex-col justify-between hover:border-slate-300 transition-all group relative cursor-pointer"
                   onClick={() => setTeacherToView(teacher)}
@@ -592,13 +630,18 @@ export default function TeachersView() {
 
                         {/* Three dots More button (Assign and Unassign ONLY open from here) */}
                         {!isDel && (
-                          <div className="relative teacher-card-menu" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className="relative teacher-card-menu"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenMenuTeacherId(
-                                  openMenuTeacherId === currentId ? null : currentId
+                                  openMenuTeacherId === currentId
+                                    ? null
+                                    : currentId,
                                 );
                               }}
                               className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -646,13 +689,17 @@ export default function TeachersView() {
                       {teacher.department && (
                         <div className="flex items-center gap-2 truncate">
                           <Briefcase className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="font-semibold truncate">{teacher.department}</span>
+                          <span className="font-semibold truncate">
+                            {teacher.department}
+                          </span>
                         </div>
                       )}
                       {teacher.qualification && (
                         <div className="flex items-center gap-2 text-slate-500 truncate">
                           <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{teacher.qualification}</span>
+                          <span className="truncate">
+                            {teacher.qualification}
+                          </span>
                         </div>
                       )}
                       {teacher.email && (
@@ -667,13 +714,20 @@ export default function TeachersView() {
                     <div className="pt-2.5 border-t border-slate-100">
                       <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>{teacherCourses.length} {teacherCourses.length === 1 ? "Course" : "Courses"} Assigned</span>
+                        <span>
+                          {teacherCourses.length}{" "}
+                          {teacherCourses.length === 1 ? "Course" : "Courses"}{" "}
+                          Assigned
+                        </span>
                       </span>
                     </div>
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {isDel ? (
                       <Button
                         size="xs"
@@ -689,14 +743,18 @@ export default function TeachersView() {
                         onClick={() => handleRestore(teacher)}
                         className="w-full text-xs font-semibold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/80 border-emerald-200/80 cursor-pointer justify-center"
                       >
-                        {isCurrentlyRestoring ? "Restoring..." : "Restore Teacher"}
+                        {isCurrentlyRestoring
+                          ? "Restoring..."
+                          : "Restore Teacher"}
                       </Button>
                     ) : (
                       <>
                         <Button
                           size="xs"
                           variant="outline"
-                          iconLeft={<Pencil className="w-3.5 h-3.5 text-indigo-600" />}
+                          iconLeft={
+                            <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                          }
                           onClick={() => openModal?.("edit-teacher", teacher)}
                           className="text-xs font-semibold text-indigo-700 bg-indigo-50/60 hover:bg-indigo-100/80 border-indigo-200/80 cursor-pointer"
                         >
@@ -726,7 +784,8 @@ export default function TeachersView() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-slate-500">
-            Page {currentPage} of {totalPages} ({counts[activeTab === "Deleted" ? "deleted" : "all"]} total)
+            Page {currentPage} of {totalPages} (
+            {counts[activeTab === "Deleted" ? "deleted" : "all"]} total)
           </p>
           <div className="flex items-center gap-1.5">
             <Button
@@ -788,11 +847,15 @@ export default function TeachersView() {
             {isLoadingAssignCourses ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
-                <span className="ml-2 text-xs text-slate-400">Searching courses...</span>
+                <span className="ml-2 text-xs text-slate-400">
+                  Searching courses...
+                </span>
               </div>
             ) : assignCoursesList.length === 0 ? (
               <div className="py-4 text-center text-xs text-slate-400 border border-slate-200 rounded-xl">
-                {assignCourseSearch ? "No courses match your search." : "No courses available."}
+                {assignCourseSearch
+                  ? "No courses match your search."
+                  : "No courses available."}
               </div>
             ) : (
               <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
@@ -800,7 +863,9 @@ export default function TeachersView() {
                   const cId = course.id ?? course._id;
                   const isAlreadyAssigned = assignedCourseIds.has(String(cId));
                   const isSelected = selectedCourseIds.includes(String(cId));
-                  const cTitle = course.code ? `${course.code} - ${course.title}` : course.title;
+                  const cTitle = course.code
+                    ? `${course.code} - ${course.title}`
+                    : course.title;
                   return (
                     <label
                       key={cId}
@@ -808,8 +873,8 @@ export default function TeachersView() {
                         isAlreadyAssigned
                           ? "opacity-50 cursor-not-allowed bg-slate-50"
                           : isSelected
-                          ? "bg-indigo-50"
-                          : "hover:bg-slate-50"
+                            ? "bg-indigo-50"
+                            : "hover:bg-slate-50"
                       }`}
                     >
                       <input
@@ -819,10 +884,18 @@ export default function TeachersView() {
                         onChange={() => handleToggleCourseId(String(cId))}
                         className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
-                      <span className={isAlreadyAssigned ? "text-slate-400" : "text-slate-700"}>
+                      <span
+                        className={
+                          isAlreadyAssigned
+                            ? "text-slate-400"
+                            : "text-slate-700"
+                        }
+                      >
                         {cTitle}
                         {isAlreadyAssigned && (
-                          <span className="ml-1.5 text-[10px] font-semibold text-slate-400">(Already assigned)</span>
+                          <span className="ml-1.5 text-[10px] font-semibold text-slate-400">
+                            (Already assigned)
+                          </span>
                         )}
                       </span>
                     </label>
@@ -832,7 +905,8 @@ export default function TeachersView() {
             )}
             {selectedCourseIds.length > 0 && (
               <p className="text-xs text-indigo-600 font-medium mt-1.5">
-                {selectedCourseIds.length} course{selectedCourseIds.length > 1 ? "s" : ""} selected
+                {selectedCourseIds.length} course
+                {selectedCourseIds.length > 1 ? "s" : ""} selected
               </p>
             )}
           </div>
@@ -861,7 +935,9 @@ export default function TeachersView() {
               }
               className="cursor-pointer"
             >
-              {isAssigning ? "Assigning..." : `Assign Course${selectedCourseIds.length > 1 ? "s" : ""}`}
+              {isAssigning
+                ? "Assigning..."
+                : `Assign Course${selectedCourseIds.length > 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>
@@ -885,7 +961,9 @@ export default function TeachersView() {
           <p className="text-sm text-slate-600 leading-relaxed">
             Are you sure you want to unassign course assignments from{" "}
             <span className="font-bold text-slate-900">
-              {teacherToUnassign ? getTeacherName(teacherToUnassign) : "this faculty member"}
+              {teacherToUnassign
+                ? getTeacherName(teacherToUnassign)
+                : "this faculty member"}
             </span>
             ? The course itself will remain intact in the system catalog.
           </p>
@@ -904,14 +982,19 @@ export default function TeachersView() {
               className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"
             >
               {(() => {
-                const assigned = getTeacherCourses(teacherToUnassign, coursesList);
+                const assigned = getTeacherCourses(
+                  teacherToUnassign,
+                  coursesList,
+                );
                 if (assigned.length === 0) {
                   return <option value="">No courses assigned</option>;
                 }
                 return (
                   <>
                     {assigned.length > 1 && (
-                      <option value="all">All Assigned Courses ({assigned.length})</option>
+                      <option value="all">
+                        All Assigned Courses ({assigned.length})
+                      </option>
                     )}
                     {assigned.map((course) => (
                       <option key={course.id} value={course.id}>
@@ -959,93 +1042,111 @@ export default function TeachersView() {
       <Modal
         isOpen={Boolean(teacherToView)}
         onClose={() => setTeacherToView(null)}
-        title={teacherToView ? getTeacherName(teacherToView) : "Faculty Details"}
+        title={
+          teacherToView ? getTeacherName(teacherToView) : "Faculty Details"
+        }
         subtitle="Faculty profile and assigned courses"
       >
-        {teacherToView && (() => {
-          const viewId = getTeacherId(teacherToView);
-          const viewName = getTeacherName(teacherToView);
-          const viewAvatar = getTeacherAvatar(teacherToView, viewName);
-          const viewCourses = getTeacherCourses(teacherToView, coursesList);
+        {teacherToView &&
+          (() => {
+            const viewId = getTeacherId(teacherToView);
+            const viewName = getTeacherName(teacherToView);
+            const viewAvatar = getTeacherAvatar(teacherToView, viewName);
+            const viewCourses = getTeacherCourses(teacherToView, coursesList);
 
-          return (
-            <div className="space-y-5">
-              {/* Profile Header */}
-              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <img
-                  src={viewAvatar}
-                  alt={viewName}
-                  className="w-14 h-14 rounded-xl object-cover ring-1 ring-slate-200 bg-slate-100 shrink-0"
-                />
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold text-slate-900">{viewName}</h3>
-                  <span className="text-xs font-mono text-slate-400">ID #{viewId}</span>
+            return (
+              <div className="space-y-5">
+                {/* Profile Header */}
+                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <img
+                    src={viewAvatar}
+                    alt={viewName}
+                    className="w-14 h-14 rounded-xl object-cover ring-1 ring-slate-200 bg-slate-100 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-slate-900">
+                      {viewName}
+                    </h3>
+                    <span className="text-xs font-mono text-slate-400">
+                      ID #{viewId}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Info Fields */}
+                <div className="space-y-2.5 text-sm">
+                  {teacherToView.email && (
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-slate-700">
+                        {teacherToView.email}
+                      </span>
+                    </div>
+                  )}
+                  {teacherToView.department && (
+                    <div className="flex items-center gap-3">
+                      <Briefcase className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <span className="text-slate-700 font-semibold">
+                        {teacherToView.department}
+                      </span>
+                    </div>
+                  )}
+                  {teacherToView.qualification && (
+                    <div className="flex items-center gap-3">
+                      <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-slate-700">
+                        {teacherToView.qualification}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned Courses */}
+                <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                    Assigned Courses ({viewCourses.length})
+                  </h4>
+
+                  {viewCourses.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                      No courses assigned yet
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                      {viewCourses.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors"
+                        >
+                          {c.code && (
+                            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 shrink-0">
+                              {c.code}
+                            </span>
+                          )}
+                          <span className="text-sm font-medium text-slate-800 truncate">
+                            {c.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="pt-3 border-t border-slate-100 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setTeacherToView(null)}
+                    className="cursor-pointer"
+                  >
+                    Close
+                  </Button>
                 </div>
               </div>
-
-              {/* Info Fields */}
-              <div className="space-y-2.5 text-sm">
-                {teacherToView.email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="text-slate-700">{teacherToView.email}</span>
-                  </div>
-                )}
-                {teacherToView.department && (
-                  <div className="flex items-center gap-3">
-                    <Briefcase className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span className="text-slate-700 font-semibold">{teacherToView.department}</span>
-                  </div>
-                )}
-                {teacherToView.qualification && (
-                  <div className="flex items-center gap-3">
-                    <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="text-slate-700">{teacherToView.qualification}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Assigned Courses */}
-              <div className="pt-4 border-t border-slate-100 space-y-2.5">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                  Assigned Courses ({viewCourses.length})
-                </h4>
-
-                {viewCourses.length === 0 ? (
-                  <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                    No courses assigned yet
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto">
-                    {viewCourses.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors"
-                      >
-                        {c.code && (
-                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 shrink-0">
-                            {c.code}
-                          </span>
-                        )}
-                        <span className="text-sm font-medium text-slate-800 truncate">
-                          {c.title}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="pt-3 border-t border-slate-100 flex justify-end">
-                <Button size="sm" variant="ghost" onClick={() => setTeacherToView(null)} className="cursor-pointer">
-                  Close
-                </Button>
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
       </Modal>
 
       {/* Delete Confirmation Modal */}
@@ -1059,10 +1160,13 @@ export default function TeachersView() {
           <p className="text-sm text-slate-600 leading-relaxed">
             Are you sure you want to remove{" "}
             <span className="font-bold text-slate-900">
-              {teacherToDelete ? getTeacherName(teacherToDelete) : "this faculty member"}
+              {teacherToDelete
+                ? getTeacherName(teacherToDelete)
+                : "this faculty member"}
             </span>
             ? This faculty record will be moved to the{" "}
-            <span className="font-semibold text-rose-600">Deleted</span> tab where it can be restored.
+            <span className="font-semibold text-rose-600">Deleted</span> tab
+            where it can be restored.
           </p>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">

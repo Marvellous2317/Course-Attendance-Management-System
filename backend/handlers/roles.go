@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // RoleResponse is the public representation of a role.
@@ -22,6 +24,7 @@ type RoleResponse struct {
 type RoleListResponse struct {
 	Message string         `json:"message" example:"Request successful"`
 	Data    []RoleResponse `json:"data"`
+	Meta    PaginationMeta `json:"meta"`
 }
 
 // RoleDataResponse is returned by GetRole, CreateRole and UpdateRole.
@@ -68,9 +71,33 @@ func toRoleResponse(role models.Role) RoleResponse {
 // @Security     BearerAuth
 // @Router       /admin/roles [get]
 func (h *Handler) GetAllRoles(w http.ResponseWriter, r *http.Request) {
+	showDeleted, _ := strconv.ParseBool(r.URL.Query().Get("isDeleted"))
+	search := r.URL.Query().Get("search")
+
+	page, perPage, offset := parsePagination(r)
+
+	scope := func() *gorm.DB {
+		q := h.DB.Model(&models.Role{})
+		if showDeleted {
+			q = q.Unscoped()
+		}
+		if search != "" {
+			like := "%" + search + "%"
+			q = q.Where("name ILIKE ? OR description ILIKE ?", like, like)
+		}
+		return q
+	}
+
+	var totalRecords int64
+
+	if err := scope().Count(&totalRecords).Error; err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	var roles []models.Role
 
-	if err := h.DB.Order("-ID").Find(&roles).Error; err != nil {
+	if err := scope().Order("id DESC").Limit(perPage).Offset(offset).Find(&roles).Error; err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
@@ -83,6 +110,7 @@ func (h *Handler) GetAllRoles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, RoleListResponse{
 		Message: "Request successful",
 		Data:    response,
+		Meta:    newPaginationMeta(totalRecords, page, perPage),
 	})
 }
 
