@@ -291,7 +291,7 @@ export default function StudentModals({
               >
                 Close
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   showToast(
@@ -304,7 +304,7 @@ export default function StudentModals({
               >
                 <span>Open Course Materials</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              </button> */}
             </div>
           </motion.div>
         </div>
