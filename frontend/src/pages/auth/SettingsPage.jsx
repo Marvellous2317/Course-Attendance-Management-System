@@ -194,11 +194,11 @@ export default function SettingsPage() {
               
             </div>
 
-            {/* Logout Button */}
+            {/* Logout Button (desktop only — mobile uses the sidebar menu) */}
             <button
               type="button"
               onClick={handleLogout}
-              className="px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              className="hidden sm:flex px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-md transition-all items-center gap-2 cursor-pointer shrink-0"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />

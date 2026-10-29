@@ -702,6 +702,16 @@ export default function CoursesView() {
     onError: () => setActioningId(null),
   });
 
+  // ---------------------------------------------------------------------------
+  // Offerings Tab state (declared before the queries below that depend on them)
+  // ---------------------------------------------------------------------------
+  const [offeringsPage, setOfferingsPage] = useState(1);
+  const [offeringsSearch, setOfferingsSearch] = useState("");
+  const deferredOfferingsSearch = useDeferredValue(offeringsSearch);
+  const [offeringToEdit, setOfferingToEdit] = useState(null);
+  const [editOfferingForm, setEditOfferingForm] = useState({});
+  const [offeringToDelete, setOfferingToDelete] = useState(null);
+
   // Fetch teachers for the offering form instructor dropdown
   const { data: teachersData } = useAdminTeachers(
     { isDeleted: false, perPage: 100 },
@@ -757,13 +767,6 @@ export default function CoursesView() {
   // ---------------------------------------------------------------------------
   // Offerings Tab: query, edit, delete
   // ---------------------------------------------------------------------------
-  const [offeringsPage, setOfferingsPage] = useState(1);
-  const [offeringsSearch, setOfferingsSearch] = useState("");
-  const deferredOfferingsSearch = useDeferredValue(offeringsSearch);
-  const [offeringToEdit, setOfferingToEdit] = useState(null);
-  const [editOfferingForm, setEditOfferingForm] = useState({});
-  const [offeringToDelete, setOfferingToDelete] = useState(null);
-
   const {
     data: offeringsData,
     isLoading: isLoadingOfferings,

@@ -15,14 +15,21 @@ const buildToast = ({
 
 export const useToastStore = create((set) => ({
   toasts: [],
-  showToast: (toast) =>
+  // Supports both showToast(message, type, duration) and
+  // showToast({ message, type, duration }).
+  showToast: (toast, type = 'info', duration = DEFAULT_DURATION) =>
     set((state) => ({
       toasts: [
         ...state.toasts,
         buildToast(
-          typeof toast === 'string'
-            ? { message: toast }
-            : { ...toast, message: toast.message || '' },
+          typeof toast === 'string' || !toast
+            ? { message: toast || '', type, duration }
+            : {
+                ...toast,
+                message: toast.message || '',
+                type: toast.type || type,
+                duration: toast.duration ?? duration,
+              },
         ),
       ],
     })),

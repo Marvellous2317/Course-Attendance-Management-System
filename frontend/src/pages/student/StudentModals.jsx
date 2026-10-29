@@ -13,6 +13,51 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import useToast from '../../shared/hooks/useToast';
+import { useAuthStore } from '../../shared/store/useAuthStore';
+import { formatCourseDate } from '../../shared/utils/date';
+
+const initialsOf = (name = '') =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+// The student enrollment endpoint returns a course offering
+// ({ course, instructor, batchCode, sessions, ... }); older mock screens pass a
+// flat course object. Normalize both shapes into the fields this modal renders.
+const buildCourseDetails = (selection) => {
+  const course = selection.course || {};
+  const instructor = selection.instructor || {};
+
+  const instructorName =
+    [instructor.firstName, instructor.lastName].filter(Boolean).join(' ') ||
+    selection.instructorName ||
+    'Instructor';
+
+  const attendanceRate = Number(selection.attendanceRate);
+
+  return {
+    code: course.code || selection.code || 'COURSE',
+    title: course.title || selection.title || 'Untitled Course',
+    description: course.description || selection.description || '',
+    batchCode: selection.batchCode || '',
+    section: selection.section || selection.batchCode || 'SECTION 01',
+    instructorName,
+    instructorInitials: initialsOf(instructorName),
+    instructorEmail: instructor.email || selection.instructorEmail || '',
+    instructorTitle: selection.instructorTitle || 'Course Instructor',
+    schedule: selection.startTime
+      ? formatCourseDate(selection.startTime)
+      : selection.schedule || 'Schedule to be announced',
+    duration: selection.duration,
+    sessions: selection.sessions,
+    attendanceRate: Number.isFinite(attendanceRate) ? attendanceRate : null,
+  };
+};
+
 export default function StudentModals({
   selectedCourse,
   onCloseCourseModal,
@@ -28,6 +73,13 @@ export default function StudentModals({
   onCloseTimetableMatrix,
 }) {
   const { showToast } = useToast();
+  const user = useAuthStore((state) => state.user);
+  const courseDetails = selectedCourse ? buildCourseDetails(selectedCourse) : null;
+  const studentName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+    user?.email ||
+    'Student';
+  const studentIdLabel = user?.id ? `ID #${user.id}` : '';
   const [appealCourse, setAppealCourse] = useState('MATH-240');
   const [appealReason, setAppealReason] = useState(
     'Medical clinic visit with documentation',
@@ -62,8 +114,8 @@ export default function StudentModals({
   };
   return (
     <AnimatePresence>
-      {/* 1. COURSE DETAILS MODAL (Matches screen6.png) */}
-      {selectedCourse && (
+      {/* 1. COURSE DETAILS MODAL (live enrollment data) */}
+      {selectedCourse && courseDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
@@ -85,13 +137,12 @@ export default function StudentModals({
               <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    • TERM 2025-A ACTIVE
+                    ACTIVE ENROLLMENT
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700">
-                    • {selectedCourse.section || 'SECTION 01'}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700">
-                    • ACCREDITED ABET 2025
+                    {courseDetails.batchCode
+                      ? `BATCH ${courseDetails.batchCode}`
+                      : courseDetails.section}
                   </span>
                 </div>
 
@@ -106,18 +157,24 @@ export default function StudentModals({
               </div>
 
               <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
-                {selectedCourse.code}: {selectedCourse.title}
+                {courseDetails.code}: {courseDetails.title}
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                {selectedCourse.department} •{' '}
-                {(selectedCourse.credits ?? 0).toFixed(1)} Academic Units
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">
+                {courseDetails.description ||
+                  'No description has been added for this course yet.'}
               </p>
 
               {/* Schedule strip */}
               <div className="mt-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 flex items-center gap-2.5 text-xs text-amber-950 font-medium">
                 <Clock className="w-4 h-4 text-secondary-500 shrink-0" />
                 <span>
-                  Every {selectedCourse.schedule} • {selectedCourse.room}
+                  {courseDetails.schedule}
+                  {courseDetails.duration
+                    ? ` • ${courseDetails.duration} min sessions`
+                    : ''}
+                  {courseDetails.sessions
+                    ? ` • ${courseDetails.sessions} sessions`
+                    : ''}
                 </span>
               </div>
             </div>
@@ -126,27 +183,25 @@ export default function StudentModals({
             <div className="p-6 sm:p-7 space-y-6 max-h-[60vh] overflow-y-auto">
               {/* Instructor Card */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedCourse.instructorAvatar}
-                    alt={selectedCourse.instructorName}
-                    className="w-12 h-12 rounded-full object-cover border border-slate-200 ring-2 ring-secondary-500/20"
-                  />
-                  <div>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-primary-900 text-secondary-500 font-black text-sm flex items-center justify-center border border-slate-200 ring-2 ring-secondary-500/20 shrink-0">
+                    {courseDetails.instructorInitials || 'IN'}
+                  </div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h4 className="font-bold text-sm text-slate-950">
-                        {selectedCourse.instructorName}
+                      <h4 className="font-bold text-sm text-slate-950 truncate">
+                        {courseDetails.instructorName}
                       </h4>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-secondary-500" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-secondary-500 shrink-0" />
                     </div>
                     <p className="text-xs text-slate-500">
-                      {selectedCourse.instructorTitle}
+                      {courseDetails.instructorTitle}
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Office:{' '}
-                      {selectedCourse.instructorOffice ||
-                        'Alan Turing Engineering Complex #412'}
-                    </p>
+                    {courseDetails.instructorEmail && (
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate font-mono">
+                        {courseDetails.instructorEmail}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -154,142 +209,75 @@ export default function StudentModals({
                   type="button"
                   onClick={() =>
                     showToast(
-                      `Opening direct academic mailer to ${selectedCourse.instructorName}`,
+                      courseDetails.instructorEmail
+                        ? `Opening mail to ${courseDetails.instructorEmail}`
+                        : `Contacting ${courseDetails.instructorName}`,
                       'info',
                     )
                   }
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors shrink-0"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   <span>Contact</span>
                 </button>
               </div>
 
-              {/* Curriculum Focus & Methodology */}
+              {/* Course Overview */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Curriculum Focus & Methodology
+                  Course Overview
                 </h4>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Stochastic gradient optimization dynamics, provable
-                  convergence bounds in hyper-parameter scheduling, and
-                  resilient algorithmic safety in deep neural networks. Heavy
-                  emphasis on distributed transformer pipelines and
-                  self-attention sparsity.
+                  {courseDetails.description ||
+                    'Your instructor has not added a course description yet.'}
                 </p>
               </div>
 
-              {/* Weekly Syllabus Milestones */}
+              {/* Batch Details */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/80">
-                  <span className="text-[10px] font-bold text-secondary-500 block uppercase tracking-wider">
-                    WEEK 06 (CURRENT)
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                    Batch Code
                   </span>
                   <p className="text-xs font-bold text-slate-900 mt-1">
-                    Attention Sparsity & FlashAttention-2
+                    {courseDetails.batchCode || '—'}
                   </p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
                   <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
-                    WEEK 07
+                    Class Sessions
                   </span>
                   <p className="text-xs font-bold text-slate-900 mt-1">
-                    Transformer Scaling Laws
+                    {courseDetails.sessions != null
+                      ? courseDetails.sessions
+                      : '—'}
                   </p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
                   <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
-                    WEEK 08
+                    Session Length
                   </span>
                   <p className="text-xs font-bold text-slate-900 mt-1">
-                    Distributed Mixture of Experts
+                    {courseDetails.duration
+                      ? `${courseDetails.duration} mins`
+                      : '—'}
                   </p>
                 </div>
               </div>
 
-              {/* Verified Repositories & Links */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
-                  Verified Course Repositories & Links
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <a
-                    href="#slides"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showToast(
-                        'Downloading Week 6 Lecture Slides PDF...',
-                        'info',
-                      );
-                    }}
-                    className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center gap-3 transition-colors group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 truncate">
-                        Lecture Slides
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        Week 6 Sparsity.pdf...
-                      </div>
-                    </div>
-                  </a>
-
-                  <a
-                    href="#repo"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showToast('Accessing GitHub Lab Repo...', 'info');
-                    }}
-                    className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center gap-3 transition-colors group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-                      <GitBranch className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 truncate">
-                        GitHub Lab Repo
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        github.com/othello-i...
-                      </div>
-                    </div>
-                  </a>
-
-                  <a
-                    href="#forum"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showToast('Opening Course Forum #neural-nlp...', 'info');
-                    }}
-                    className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center gap-3 transition-colors group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-secondary-500 flex items-center justify-center shrink-0">
-                      <MessageSquare className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 truncate">
-                        Forum #neural-nlp
-                      </div>
-                      <div className="text-[10px] text-amber-700 font-semibold truncate">
-                        14 Unread Posts
-                      </div>
-                    </div>
-                  </a>
-                </div>
-              </div>
-
-              {/* Attendance Verified Pill */}
+              {/* Enrollment / Attendance Pill */}
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2 text-emerald-900 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Julian Vance-Hayes (STU-2023-8841)</span>
+                <div className="flex items-center gap-2 text-emerald-900 font-semibold min-w-0">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">
+                    {studentName}
+                    {studentIdLabel ? ` (${studentIdLabel})` : ''}
+                  </span>
                 </div>
-                <span className="font-mono font-bold text-emerald-700 tracking-wider">
-                  {selectedCourse.attendanceRate.toFixed(1)}% ATTENDANCE
-                  VERIFIED
+                <span className="font-mono font-bold text-emerald-700 tracking-wider shrink-0">
+                  {courseDetails.attendanceRate !== null
+                    ? `${courseDetails.attendanceRate.toFixed(1)}% ATTENDANCE`
+                    : 'ENROLLED'}
                 </span>
               </div>
             </div>
@@ -301,20 +289,20 @@ export default function StudentModals({
                 onClick={onCloseCourseModal}
                 className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-white text-slate-600 text-xs font-bold transition-colors cursor-pointer"
               >
-                Close Modal
+                Close
               </button>
               <button
                 type="button"
                 onClick={() => {
                   showToast(
-                    `Launching ${selectedCourse.code} Virtual Lab & Jupyter Environment...`,
-                    'success',
+                    `Opening ${courseDetails.code} course materials...`,
+                    'info',
                   );
                   onCloseCourseModal();
                 }}
                 className="px-5 py-2.5 rounded-xl bg-secondary-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-transform active:scale-95 shadow-md shadow-secondary-500/20 flex items-center gap-1.5 cursor-pointer"
               >
-                <span>Launch Course Room & Lab</span>
+                <span>Open Course Materials</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -348,7 +336,7 @@ export default function StudentModals({
                     • TERM 2025-A REGISTRATION OPEN
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-primary-900 text-white">
-                    {selectedElective.credits.toFixed(1)} CREDITS
+                    {(Number(selectedElective.credits) || 0).toFixed(1)} CREDITS
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700">
                     {selectedElective.department.toUpperCase()}

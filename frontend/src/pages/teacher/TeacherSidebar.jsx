@@ -148,7 +148,7 @@ export default function TeacherSidebar() {
         {/* Mobile Header Branding */}
         <div className="flex items-center gap-2.5 lg:hidden">
           <span className="font-semibold text-white text-sm tracking-tight">
-            Faculty Portal
+            Teacher's Portal
           </span>
         </div>
 
