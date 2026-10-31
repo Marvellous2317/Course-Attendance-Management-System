@@ -1,45 +1,11 @@
+import { Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useUIStore } from "../../shared/store/useUIStore";
 import { Sidebar } from "../../shared/components/Sidebar";
-import { Header } from "../../shared/components/Header";
-import DashboardView  from "./DashboardView";
-import StudentsView  from "./StudentsView";
-import TeachersView  from "./TeachersView";
-import CoursesView from "./CoursesView";
-import SchedulesView  from "./SchedulesView";
-import FinancesView  from "./FinancesView";  
-import AnnouncementsView  from "./AnnouncementsView";
-// import RolesView from "./RolesView";
-import SettingsPage from "../auth/SettingsPage";
 import AdminModals from "./AdminModals";
 
+export default function AdminLayout() {
+  const location = useLocation();
 
-export default function AdminLayout () {
-  const activeTab = useUIStore((state) => state.activeTab);
-  const renderActiveView = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return <DashboardView key="dashboard" />;
-      case "students":
-        return <StudentsView key="students" />;
-      case "teachers":
-        return <TeachersView key="teachers" />;
-      case "courses":
-        return <CoursesView key="courses" />;
-      case "schedules":
-        return <SchedulesView key="schedules" />;
-      case "finances":
-        return <FinancesView key="finances" />;
-      case "announcements":
-        return <AnnouncementsView key="announcements" />;
-      // case "roles":
-      //   return <RolesView key="roles" />;
-      case "settings":
-        return <SettingsPage key="settings" />;
-      default:
-        return <DashboardView key="dashboard" />;
-    }
-  };
   return (
     <div className="min-h-screen bg-slate-50/60 flex antialiased text-slate-900 selection:bg-secondary-500/30 selection:text-slate-950">
       {/* Administrative Sidebar */}
@@ -47,18 +13,16 @@ export default function AdminLayout () {
 
       {/* Main Administrative Work Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* <Header /> */}
-
         <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-16 lg:pt-6 pb-8 max-w-7xl w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab}
+              key={location.pathname}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
-              {renderActiveView()}
+              <Outlet />
             </motion.div>
           </AnimatePresence>
         </main>
@@ -68,4 +32,4 @@ export default function AdminLayout () {
       <AdminModals />
     </div>
   );
-};
+}

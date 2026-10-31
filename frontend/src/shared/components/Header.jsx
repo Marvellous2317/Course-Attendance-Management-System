@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Menu,
@@ -15,8 +16,10 @@ import { initialNotifications } from '../../data/mockData';
 import { SearchInput } from './SearchInput';
 import { Button } from './Button';
 export const Header = () => {
+  const location = useLocation();
+  const pathSegments = location.pathname.split('/').filter(Boolean);
+  const activeTab = pathSegments[1] || 'dashboard';
   const {
-    activeTab,
     setMobileMenuOpen,
     searchQuery,
     setSearchQuery,

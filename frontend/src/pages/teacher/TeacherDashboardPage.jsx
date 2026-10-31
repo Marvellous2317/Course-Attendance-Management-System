@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   BookOpen,
@@ -26,7 +27,8 @@ import {
 } from '../../shared/hooks/useTeacher';
 
 export default function TeacherDashboardPage() {
-  const { setTeacherTab, setIsAttendanceModalOpen, setIsNewCourseModalOpen } = useUIStore();
+  const navigate = useNavigate();
+  const { setIsAttendanceModalOpen, setIsNewCourseModalOpen } = useUIStore();
   const user = useAuthStore((state) => state.user);
   const { showToast } = useToast();
   const teacherCourses = [];
@@ -98,7 +100,7 @@ export default function TeacherDashboardPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setTeacherTab?.('schedule')}
+              onClick={() => navigate('/teacher/schedule')}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5 text-slate-400" />

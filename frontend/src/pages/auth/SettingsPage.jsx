@@ -218,9 +218,10 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={firstName}
+                    readOnly
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="First Name"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-500 font-semibold shadow-xs cursor-not-allowed select-none"
                   />
                 </div>
               </div>
@@ -234,9 +235,10 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={lastName}
+                    readOnly
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Last Name"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 font-medium shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-500 font-semibold shadow-xs cursor-not-allowed select-none"
                   />
                 </div>
               </div>

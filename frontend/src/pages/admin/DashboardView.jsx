@@ -22,7 +22,7 @@ import { useAdminDashboard } from '../../shared/hooks/useAdmin';
 import { StatCard } from '../../shared/components/StatCard';
 
 export default function DashboardView() {
-  const { openModal, setActiveTab } = useUIStore();
+  const { openModal } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const { showToast } = useToast();
 

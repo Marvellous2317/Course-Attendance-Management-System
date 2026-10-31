@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard,
@@ -30,8 +31,6 @@ const formatRole = (r) => {
 
 export const Sidebar = () => {
   const {
-    activeTab,
-    setActiveTab,
     sidebarCollapsed,
     toggleSidebar,
     mobileMenuOpen,
@@ -119,12 +118,12 @@ export const Sidebar = () => {
   }, [mobileMenuOpen]);
 
   const mainNavItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "students", label: "Students", icon: GraduationCap },
-    { id: "teachers", label: "Teachers", icon: Users },
-    { id: "courses", label: "Courses", icon: BookOpen },
-    // { id: 'roles', label: 'Roles', icon: ShieldCheck },
-    { id: "settings", label: "Settings", icon: Settings },
+    { path: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+    { path: "/admin/students", label: "Students", icon: GraduationCap },
+    { path: "/admin/teachers", label: "Teachers", icon: Users },
+    { path: "/admin/courses", label: "Courses", icon: BookOpen },
+    // { path: "/admin/roles", label: "Roles", icon: ShieldCheck },
+    { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
   const navContent = (
@@ -189,16 +188,14 @@ export const Sidebar = () => {
       {/* Navigation Links */}
       <div className="flex-1 pl-3 pr-0 py-6 space-y-2 overflow-y-auto">
         {mainNavItems.map((item) => {
-          const isActive = activeTab === item.id;
           const Icon = item.icon;
           return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setMobileMenuOpen(false);
-              }}
-              className={`
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end}
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) => `
                 group relative isolate w-full flex items-center gap-3 py-3 rounded-l-full text-sm font-medium transition-colors cursor-pointer
                 ${sidebarCollapsed ? "justify-center px-2" : "pl-4 pr-6"}
                 ${
@@ -207,52 +204,56 @@ export const Sidebar = () => {
                     : "text-primary-200/80 hover:text-white hover:bg-white/10"
                 }
               `}
-              title={sidebarCollapsed ? item.label : void 0}
+              title={sidebarCollapsed ? item.label : undefined}
             >
-              {/* Sliding active tab */}
-              {isActive && (
-                <motion.span
-                  layoutId="sidebarActiveIndicator"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  className="absolute inset-y-0 left-0 right-0 -z-10 rounded-l-full bg-[var(--page-bg)]"
-                >
-                  <span
-                    aria-hidden
-                    className="hidden lg:block pointer-events-none absolute right-0 -top-5 size-5 [background:radial-gradient(circle_at_0_0,transparent_19px,var(--page-bg)_20px)]"
+              {({ isActive }) => (
+                <>
+                  {/* Sliding active tab */}
+                  {isActive && (
+                    <motion.span
+                      layoutId="sidebarActiveIndicator"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      className="absolute inset-y-0 left-0 right-0 -z-10 rounded-l-full bg-[var(--page-bg)]"
+                    >
+                      <span
+                        aria-hidden
+                        className="hidden lg:block pointer-events-none absolute right-0 -top-5 size-5 [background:radial-gradient(circle_at_0_0,transparent_19px,var(--page-bg)_20px)]"
+                      />
+                      <span
+                        aria-hidden
+                        className="hidden lg:block pointer-events-none absolute right-0 -bottom-5 size-5 [background:radial-gradient(circle_at_0_100%,transparent_19px,var(--page-bg)_20px)]"
+                      />
+                    </motion.span>
+                  )}
+
+                  <Icon
+                    className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                      isActive
+                        ? "text-primary-900"
+                        : "text-primary-200/80 group-hover:text-white"
+                    }`}
                   />
-                  <span
-                    aria-hidden
-                    className="hidden lg:block pointer-events-none absolute right-0 -bottom-5 size-5 [background:radial-gradient(circle_at_0_100%,transparent_19px,var(--page-bg)_20px)]"
-                  />
-                </motion.span>
+
+                  <AnimatePresence initial={false}>
+                    {!sidebarCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="flex-1 text-left whitespace-nowrap overflow-hidden text-sm"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+
+                  {!sidebarCollapsed && isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary-500 shrink-0 ml-auto" />
+                  )}
+                </>
               )}
-
-              <Icon
-                className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                  isActive
-                    ? "text-primary-900"
-                    : "text-primary-200/80 group-hover:text-white"
-                }`}
-              />
-
-              <AnimatePresence initial={false}>
-                {!sidebarCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="flex-1 text-left whitespace-nowrap overflow-hidden text-sm"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-
-              {!sidebarCollapsed && isActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary-500 shrink-0 ml-auto" />
-              )}
-            </button>
+            </NavLink>
           );
         })}
       </div>
@@ -372,3 +373,5 @@ export const Sidebar = () => {
     </>
   );
 };
+
+export default Sidebar;

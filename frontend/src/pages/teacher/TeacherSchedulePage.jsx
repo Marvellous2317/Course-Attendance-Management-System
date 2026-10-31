@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar as CalendarIcon,
@@ -108,7 +109,8 @@ const getRelativeCountdown = (startIso) => {
 // ==============================================================================
 
 export default function TeacherSchedulePage() {
-  const { openAttendanceModal, setTeacherTab } = useUIStore();
+  const navigate = useNavigate();
+  const { openAttendanceModal } = useUIStore();
   const { showToast } = useToast();
 
   // View States
@@ -528,7 +530,7 @@ export default function TeacherSchedulePage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setTeacherTab?.('courses')}
+                  onClick={() => navigate('/teacher/courses')}
                   className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
                 >
                   Create offering
@@ -654,7 +656,7 @@ export default function TeacherSchedulePage() {
           {offerings.length === 0 ? (
             <button
               type="button"
-              onClick={() => setTeacherTab?.('courses')}
+              onClick={() => navigate('/teacher/courses')}
               className="px-4 py-2.5 rounded-xl bg-primary-900 hover:bg-primary-950 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <Plus className="w-4 h-4 text-secondary-500" />

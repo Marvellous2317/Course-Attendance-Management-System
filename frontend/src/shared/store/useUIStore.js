@@ -1,13 +1,6 @@
 import { create } from 'zustand';
 
 export const useUIStore = create((set) => ({
-  // Navigation tabs
-  activeTab: 'dashboard',
-  setActiveTab: (activeTab) => set({ activeTab }),
-
-  teacherTab: 'dashboard',
-  setTeacherTab: (teacherTab) => set({ teacherTab }),
-
   // Sidebar & Navigation controls
   sidebarCollapsed: false,
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),

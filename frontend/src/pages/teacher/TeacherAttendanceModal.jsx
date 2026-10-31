@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   AlertCircle,
@@ -73,7 +74,7 @@ function AttendanceModalContent({ target }) {
   const setIsAttendanceModalOpen = useUIStore(
     (state) => state.setIsAttendanceModalOpen
   );
-  const setTeacherTab = useUIStore((state) => state.setTeacherTab);
+  const navigate = useNavigate();
 
   const closeModal = () => setIsAttendanceModalOpen(false);
 
@@ -359,7 +360,7 @@ function AttendanceModalContent({ target }) {
     : "Select a class session";
 
   const goTo = (tab) => {
-    setTeacherTab?.(tab);
+    navigate("/teacher/" + tab);
     closeModal();
   };
 

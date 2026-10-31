@@ -1,32 +1,11 @@
+import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { useUIStore } from '../../shared/store/useUIStore';
 import TeacherSidebar from './TeacherSidebar';
-import TeacherHeader from './TeacherHeader';
-import TeacherDashboardPage from './TeacherDashboardPage';
-import TeacherCoursesPage from './TeacherCoursesPage';
-import TeacherAttendancePage from './TeacherAttendancePage';
-import TeacherSchedulePage from './TeacherSchedulePage';
-import SettingsPage from '../auth/SettingsPage';
 import TeacherModals from './TeacherModals';
 
 export default function TeacherLayout() {
-  const teacherTab = useUIStore((state) => state.teacherTab);
-  const renderActiveTab = () => {
-    switch (teacherTab) {
-      case 'dashboard':
-        return <TeacherDashboardPage key="teacher-dashboard" />;
-      case 'courses':
-        return <TeacherCoursesPage key="teacher-courses" />;
-      case 'attendance':
-        return <TeacherAttendancePage key="teacher-attendance" />;
-      case 'schedule':
-        return <TeacherSchedulePage key="teacher-schedule" />;
-      case 'settings':
-        return <SettingsPage key="teacher-settings" />;
-      default:
-        return <TeacherDashboardPage key="teacher-dashboard" />;
-    }
-  };
+  const location = useLocation();
+
   return (
     <div className="min-h-screen bg-slate-50/60 flex antialiased text-slate-900">
       {/* Teacher Faculty Sidebar */}
@@ -34,17 +13,16 @@ export default function TeacherLayout() {
 
       {/* Main Faculty Area */}
       <div className="flex-1 flex flex-col min-w-0">
-
         <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-16 lg:pt-6 pb-8 max-w-7xl w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
-              key={teacherTab}
+              key={location.pathname}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
-              {renderActiveTab()}
+              <Outlet />
             </motion.div>
           </AnimatePresence>
         </main>
@@ -54,4 +32,4 @@ export default function TeacherLayout() {
       <TeacherModals />
     </div>
   );
-};
+}
